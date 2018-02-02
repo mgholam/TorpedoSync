@@ -273,7 +273,10 @@ namespace TorpedoSync
         public static string SaveConnection(Connection conn)
         {
             var path = "Computers\\" + conn.MachineName + "\\";
-            Directory.CreateDirectory(path.Replace('\\', Path.DirectorySeparatorChar));
+            if (TorpedoSync.Global.isWindows == false)
+                path = path.Replace('\\', Path.DirectorySeparatorChar);
+
+            Directory.CreateDirectory(path);
 
             File.WriteAllText(path + conn.Name + ".config", JSON.ToNiceJSON(conn, new JSONParameters { UseExtensions = false }));
             return path;

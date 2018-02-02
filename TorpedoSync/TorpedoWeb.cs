@@ -13,11 +13,12 @@ namespace TorpedoSync
     {
         public TorpedoWeb(int HttpPort,
             bool localonly,
+            bool embeddedresources,
             Action<Connection> startque,
             Action<Connection> removeque,
             Func<Connection, ConnectionInfo> getconninfo,
             AuthenticationSchemes authenticationType,
-            string apiPrefix) : base(HttpPort, localonly, authenticationType, "api", "main.html")
+            string apiPrefix) : base(HttpPort, localonly, embeddedresources, authenticationType, "api", "main.html")
         {
             StartQue = startque;
             RemoveQue = removeque;

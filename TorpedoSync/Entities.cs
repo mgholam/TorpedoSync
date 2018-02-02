@@ -95,9 +95,9 @@ namespace TorpedoSync
         public bool Allowed(string filepath)
         {
             // check against ignore list
-            string _S = "" + System.IO.Path.DirectorySeparatorChar;
+            //string _S = "\\";// + System.IO.Path.DirectorySeparatorChar;
             string fpl = filepath.ToLower();
-            string[] ss = fpl.Split(System.IO.Path.DirectorySeparatorChar);
+            string[] ss = fpl.Split('\\');// System.IO.Path.DirectorySeparatorChar);
             foreach (var i in ignorelist)
             {
                 string il = i.ToLower();
@@ -117,8 +117,8 @@ namespace TorpedoSync
                     }
                     else
                     {
-                        var s = il.Replace("\\", _S);
-                        if (fpl.Contains(s)) // as a folder
+                        //var s = il.Replace("\\", _S);
+                        if (fpl.Contains(il)) // as a folder
                             return false;
                     }
                 }

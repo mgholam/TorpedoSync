@@ -6,28 +6,20 @@ using System.Threading.Tasks;
 using System.Collections.Generic;
 using System.IO.Compression;
 using RaptorDB;
-using System.Threading;
 using System.Reflection;
 
 namespace TorpedoSync
 {
-    //public enum HTTP
-    //{
-    //    OK = 200,
-    //    NOT_FOUND = 404,
-    //    INT_ERROR = 500
-    //}
-
     internal abstract class CoreWebServer
     {
-        public CoreWebServer(int HttpPort, bool localonly, AuthenticationSchemes authenticationType, string apiPrefix, string startpage)
+        public CoreWebServer(int HttpPort, bool localonly, bool embeddedresources, AuthenticationSchemes authenticationType, string apiPrefix, string startpage)
         {
+            _embedded = embeddedresources;
             _apiPrefix = apiPrefix;
             _authenticationType = authenticationType;
             _localonly = localonly;
             _port = HttpPort;
             _startPage = startpage;
-            //Console.WriteLine("web port = " + _port);
             Task.Factory.StartNew(() => Start(), TaskCreationOptions.LongRunning);
         }
 
@@ -47,6 +39,7 @@ namespace TorpedoSync
         private AuthenticationSchemes _authenticationType = AuthenticationSchemes.None;
         private string _apiPrefix = "myapi";
         private string _startPage = "app.html";
+        private bool _embedded = false;
         #endregion
 
         #region [  internal  ]
@@ -209,10 +202,10 @@ namespace TorpedoSync
             if (path == "")
             {
                 ctx.Response.ContentType = "text/html";
-                if (Global.UseFileWebResources == false)
+                if (_embedded)
                     WriteResponse(ctx, 200, ReadFromStream(_WebCache[(webpath + _startPage).ToLower()]), false);
                 else
-                    WriteResponse(ctx, 200, File.ReadAllBytes("WEB\\" + _startPage), true);
+                    WriteResponse(ctx, 200, File.ReadAllBytes("WEB"+ _S + _startPage), true);
             }
             else
             {
@@ -223,7 +216,7 @@ namespace TorpedoSync
                 }
                 else
                 {
-                    if (Global.UseFileWebResources == false)
+                    if (_embedded)
                     {
                         if (_WebCache.ContainsKey((webpath + path).ToLower()))
                         {
@@ -240,10 +233,10 @@ namespace TorpedoSync
                     else
                     {
                         path = path.Replace("/", "\\");
-                        if (File.Exists("WEB\\" + path))
+                        if (File.Exists("WEB" +_S + path))
                         {
                             bool compress = OutPutContentType(ctx, path);
-                            var s = File.ReadAllBytes("WEB\\" + path);
+                            var s = File.ReadAllBytes("WEB" +_S + path);
                             WriteResponse(ctx, 200, s, compress);
                         }
                         else
@@ -331,7 +324,7 @@ namespace TorpedoSync
                     s = s.Replace(ext, "").Replace(".", "/");
                     var p = s + ext;
                     _WebCache.Add(p.ToLower(), r);
-                    if (Global.UseFileWebResources)
+                    if (_embedded == false)
                     {
                         string fn = p.Replace("_", "-"); // KLUDGE : for web filename with _
                         Directory.CreateDirectory(Path.GetDirectoryName(fn));

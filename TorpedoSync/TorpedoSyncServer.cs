@@ -37,6 +37,7 @@ namespace TorpedoSync
             _webserver = new TorpedoWeb(
                 _webport,
                 Global.LocalOnlyWeb,
+                Global.UseEmbeddedWebResources,
                 StartQue,
                 RemoveQue,
                 GetConnInfo,
@@ -108,6 +109,8 @@ namespace TorpedoSync
             // read settings
             if (File.Exists("settings.config"))
                 JSON.FillObject(new Global(), File.ReadAllText("settings.config"));
+            else
+                ServerCommands.SaveConfig();
             foreach (var s in Global.Shares)
             {
                 //if (s.id == null)

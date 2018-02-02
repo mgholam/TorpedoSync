@@ -45,7 +45,7 @@ namespace TorpedoSync
         [XmlIgnore]
         public const long tickfilter = 10*1000*1000;
         [XmlIgnore]
-        public static bool UseFileWebResources = false;
+        public static bool UseEmbeddedWebResources = true;
         [XmlIgnore]
         public static bool PauseAll = false;
     }
