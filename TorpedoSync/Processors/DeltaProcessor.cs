@@ -22,7 +22,8 @@ namespace TorpedoSync
             State state = new State();
             foreach (var f in LongDirectory.GetDirectories(path, "*.*", SearchOption.AllDirectories))
             {
-                string p = f.Replace(path, "");
+                string p = f.Replace(path, "")
+                    .Replace("/", "\\"); // for unix systems
                 if (share.Allowed(p))
                     state.Folders.Add(p);
             }
@@ -32,7 +33,8 @@ namespace TorpedoSync
                 foreach (var f in Directory.EnumerateFiles(path, "*.*", SearchOption.AllDirectories))
                 {
                     var fi = new FileInfo(f);
-                    string fn = fi.FullName.Replace(path, "");
+                    string fn = fi.FullName.Replace(path, "")
+                        .Replace("/","\\"); // for unix systems
                     if (share.Allowed(fi.FullName))
                         state.Files.Add(new SyncFile { F = fn, D = fi.LastWriteTime, S = fi.Length });
                 }
@@ -41,7 +43,8 @@ namespace TorpedoSync
             {
                 foreach (var f in FastDirectoryEnumerator.EnumerateFiles(path, "*.*", SearchOption.AllDirectories))
                 {
-                    string fn = f.Path.Replace(path, "");
+                    string fn = f.Path.Replace(path, "")
+                        .Replace("/","\\"); // for unix systems
                     if (share.Allowed(f.Path))
                         state.Files.Add(new SyncFile { F = fn, D = f.LastWriteTime, S = f.Size });
                 }
