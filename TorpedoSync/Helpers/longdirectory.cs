@@ -16,10 +16,12 @@ internal class LongDirectory
     public static void CreateDirectory(string path)
     {
         if (string.IsNullOrWhiteSpace(path)) return;
-        if (path.Length < MAX_PATH)
-        {
+        if (TorpedoSync.Global.isWindows == false)
+            System.IO.Directory.CreateDirectory(path.Replace("\\", "/"));
+
+        else if (path.Length < MAX_PATH)
             System.IO.Directory.CreateDirectory(path);
-        }
+
         else
         {
             var paths = GetAllPathsFromPath(GetWin32LongPath(path));
@@ -44,7 +46,11 @@ internal class LongDirectory
 
     public static void Delete(string path, bool recursive)
     {
-        if (path.Length < MAX_PATH && !recursive)
+        if (TorpedoSync.Global.isWindows == false)
+        {
+            System.IO.Directory.Delete(path.Replace("\\", "/"), recursive);
+        }
+        else if (path.Length < MAX_PATH && !recursive)
         {
             System.IO.Directory.Delete(path, false);
         }
@@ -81,7 +87,12 @@ internal class LongDirectory
 
     public static bool Exists(string path)
     {
-        if (path.Length < MAX_PATH) return System.IO.Directory.Exists(path);
+        if (TorpedoSync.Global.isWindows == false)
+            return System.IO.Directory.Exists(path.Replace("\\", "/"));
+
+        if (path.Length < MAX_PATH)
+            return System.IO.Directory.Exists(path);
+
         return LongExists(GetWin32LongPath(path));
     }
 
@@ -94,16 +105,25 @@ internal class LongDirectory
 
     public static string[] GetDirectories(string path)
     {
+        if (TorpedoSync.Global.isWindows == false)
+            return System.IO.Directory.GetDirectories(path.Replace("\\", "/"));
+
         return GetDirectories(path, null, SearchOption.TopDirectoryOnly);
     }
 
     public static string[] GetDirectories(string path, string searchPattern)
     {
+        if (TorpedoSync.Global.isWindows == false)
+            return System.IO.Directory.GetDirectories(path.Replace("\\", "/"), searchPattern);
+
         return GetDirectories(path, searchPattern, SearchOption.TopDirectoryOnly);
     }
 
     public static string[] GetDirectories(string path, string searchPattern, System.IO.SearchOption searchOption)
     {
+        if (TorpedoSync.Global.isWindows == false)
+            return System.IO.Directory.GetDirectories(path.Replace("\\", "/"), searchPattern, searchOption);
+
         searchPattern = searchPattern ?? "*";
         var dirs = new List<string>();
         InternalGetDirectories(path, searchPattern, searchOption, ref dirs);
@@ -159,9 +179,11 @@ internal class LongDirectory
         return GetFiles(path, searchPattern, SearchOption.TopDirectoryOnly);
     }
 
-
     public static string[] GetFiles(string path, string searchPattern, System.IO.SearchOption searchOption)
     {
+        if (TorpedoSync.Global.isWindows == false)
+            return System.IO.Directory.GetFiles(path.Replace("\\", "/"), searchPattern, searchOption);
+
         searchPattern = searchPattern ?? "*";
 
         var files = new List<string>();
@@ -204,14 +226,14 @@ internal class LongDirectory
         return files.ToArray();
     }
 
-
-
     public static void Move(string sourceDirName, string destDirName)
     {
-        if (sourceDirName.Length < MAX_PATH || destDirName.Length < MAX_PATH)
-        {
+        if (TorpedoSync.Global.isWindows == false)
+            System.IO.Directory.Move(sourceDirName.Replace("\\", "/"), destDirName);
+
+        else if (sourceDirName.Length < MAX_PATH || destDirName.Length < MAX_PATH)
             System.IO.Directory.Move(sourceDirName, destDirName);
-        }
+
         else
         {
             var ok = NativeMethods.MoveFileW(GetWin32LongPath(sourceDirName), GetWin32LongPath(destDirName));

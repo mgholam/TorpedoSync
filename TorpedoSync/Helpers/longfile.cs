@@ -12,7 +12,12 @@ internal static class LongFile
 
     public static bool Exists(string path)
     {
-        if (path.Length < MAX_PATH) return System.IO.File.Exists(path);
+        if (TorpedoSync.Global.isWindows == false)
+            return System.IO.File.Exists(path.Replace("\\", "/"));
+
+        if (path.Length < MAX_PATH)
+            return System.IO.File.Exists(path);
+
         var attr = NativeMethods.GetFileAttributesW(GetWin32LongPath(path));
         return (attr != NativeMethods.INVALID_FILE_ATTRIBUTES && ((attr & NativeMethods.FILE_ATTRIBUTE_ARCHIVE) == NativeMethods.FILE_ATTRIBUTE_ARCHIVE));
     }
@@ -21,7 +26,8 @@ internal static class LongFile
     {
         SetAttributes(path, FileAttributes.Normal);
 
-        if (path.Length < MAX_PATH) System.IO.File.Delete(path);
+        if (path.Length < MAX_PATH || TorpedoSync.Global.isWindows == false)
+            System.IO.File.Delete(path.Replace("\\", "/"));
         else
         {
             bool ok = NativeMethods.DeleteFileW(GetWin32LongPath(path));
@@ -36,10 +42,12 @@ internal static class LongFile
 
     public static void AppendAllText(string path, string contents, Encoding encoding)
     {
-        if (path.Length < MAX_PATH)
-        {
+        if (TorpedoSync.Global.isWindows == false)
+            System.IO.File.AppendAllText(path.Replace("\\", "/"), contents, encoding);
+
+        else if (path.Length < MAX_PATH)
             System.IO.File.AppendAllText(path, contents, encoding);
-        }
+
         else
         {
             var fileHandle = CreateFileForAppend(GetWin32LongPath(path));
@@ -59,10 +67,12 @@ internal static class LongFile
 
     public static void WriteAllText(string path, string contents, Encoding encoding)
     {
-        if (path.Length < MAX_PATH)
-        {
+        if (TorpedoSync.Global.isWindows == false)
+            System.IO.File.WriteAllText(path.Replace("\\", "/"), contents, encoding);
+
+        else if (path.Length < MAX_PATH)
             System.IO.File.WriteAllText(path, contents, encoding);
-        }
+
         else
         {
             var fileHandle = CreateFileForWrite(GetWin32LongPath(path));
@@ -77,10 +87,12 @@ internal static class LongFile
 
     public static void WriteAllBytes(string path, byte[] bytes)
     {
-        if (path.Length < MAX_PATH)
-        {
+        if (TorpedoSync.Global.isWindows == false)
+            System.IO.File.WriteAllBytes(path.Replace("\\", "/"), bytes);
+
+        else if (path.Length < MAX_PATH || TorpedoSync.Global.isWindows == false)
             System.IO.File.WriteAllBytes(path, bytes);
-        }
+
         else
         {
             var fileHandle = CreateFileForWrite(GetWin32LongPath(path));
@@ -99,7 +111,11 @@ internal static class LongFile
 
     public static void Copy(string sourceFileName, string destFileName, bool overwrite)
     {
-        if (sourceFileName.Length < MAX_PATH && (destFileName.Length < MAX_PATH)) System.IO.File.Copy(sourceFileName, destFileName, overwrite);
+        if (TorpedoSync.Global.isWindows == false)
+            System.IO.File.Copy(sourceFileName.Replace("\\", "/"), destFileName.Replace("\\", "/"), overwrite);
+
+        else if (sourceFileName.Length < MAX_PATH && destFileName.Length < MAX_PATH)
+            System.IO.File.Copy(sourceFileName, destFileName, overwrite);
         else
         {
             var ok = NativeMethods.CopyFileW(GetWin32LongPath(sourceFileName), GetWin32LongPath(destFileName), !overwrite);
@@ -109,7 +125,11 @@ internal static class LongFile
 
     public static void Move(string sourceFileName, string destFileName)
     {
-        if (sourceFileName.Length < MAX_PATH && (destFileName.Length < MAX_PATH)) System.IO.File.Move(sourceFileName, destFileName);
+        if (TorpedoSync.Global.isWindows == false)
+            System.IO.File.Move(sourceFileName.Replace("\\", "/"), destFileName.Replace("\\", "/"));
+
+        else if (sourceFileName.Length < MAX_PATH && destFileName.Length < MAX_PATH)
+            System.IO.File.Move(sourceFileName, destFileName);
         else
         {
             var ok = NativeMethods.MoveFileW(GetWin32LongPath(sourceFileName), GetWin32LongPath(destFileName));
@@ -124,7 +144,12 @@ internal static class LongFile
 
     public static string ReadAllText(string path, Encoding encoding)
     {
-        if (path.Length < MAX_PATH) { return System.IO.File.ReadAllText(path, encoding); }
+        if (TorpedoSync.Global.isWindows == false)
+            return System.IO.File.ReadAllText(path.Replace("\\", "/"), encoding);
+
+        if (path.Length < MAX_PATH)
+            return System.IO.File.ReadAllText(path, encoding);
+
         var fileHandle = GetFileHandle(GetWin32LongPath(path));
 
         using (var fs = new System.IO.FileStream(fileHandle, System.IO.FileAccess.Read))
@@ -142,7 +167,12 @@ internal static class LongFile
 
     public static string[] ReadAllLines(string path, Encoding encoding)
     {
-        if (path.Length < MAX_PATH) { return System.IO.File.ReadAllLines(path, encoding); }
+        if (TorpedoSync.Global.isWindows == false)
+            return System.IO.File.ReadAllLines(path.Replace("\\", "/"), encoding);
+
+        if (path.Length < MAX_PATH || TorpedoSync.Global.isWindows == false)
+            return System.IO.File.ReadAllLines(path, encoding);
+
         var fileHandle = GetFileHandle(GetWin32LongPath(path));
 
         using (var fs = new System.IO.FileStream(fileHandle, System.IO.FileAccess.Read))
@@ -156,7 +186,12 @@ internal static class LongFile
     }
     public static byte[] ReadAllBytes(string path)
     {
-        if (path.Length < MAX_PATH) return System.IO.File.ReadAllBytes(path);
+        if (TorpedoSync.Global.isWindows == false)
+            return System.IO.File.ReadAllBytes(path.Replace("\\", "/"));
+
+        if (path.Length < MAX_PATH || TorpedoSync.Global.isWindows == false)
+            return System.IO.File.ReadAllBytes(path);
+
         var fileHandle = GetFileHandle(GetWin32LongPath(path));
 
         using (var fs = new System.IO.FileStream(fileHandle, System.IO.FileAccess.Read))
@@ -167,13 +202,13 @@ internal static class LongFile
         }
     }
 
-
     public static void SetAttributes(string path, FileAttributes attributes)
     {
-        if (path.Length < MAX_PATH)
-        {
+        if (TorpedoSync.Global.isWindows == false)
+            System.IO.File.SetAttributes(path.Replace("\\","/"), attributes);
+
+        else if (path.Length < MAX_PATH)
             System.IO.File.SetAttributes(path, attributes);
-        }
         else
         {
             var longFilename = GetWin32LongPath(path);
@@ -219,23 +254,23 @@ internal static class LongFile
         return hfile;
     }
 
-    public static System.IO.FileStream GetFileStream(string filename, FileAccess access = FileAccess.Read)
-    {
-        var longFilename = GetWin32LongPath(filename);
-        SafeFileHandle hfile;
-        if (access == FileAccess.Write)
-        {
-            hfile = NativeMethods.CreateFile(longFilename, (int)(NativeMethods.FILE_GENERIC_READ | NativeMethods.FILE_GENERIC_WRITE | NativeMethods.FILE_WRITE_ATTRIBUTES), NativeMethods.FILE_SHARE_NONE, IntPtr.Zero, NativeMethods.OPEN_EXISTING, 0, IntPtr.Zero);
-        }
-        else
-        {
-            hfile = NativeMethods.CreateFile(longFilename, (int)NativeMethods.FILE_GENERIC_READ, NativeMethods.FILE_SHARE_READ, IntPtr.Zero, NativeMethods.OPEN_EXISTING, 0, IntPtr.Zero);
-        }
+    //public static System.IO.FileStream GetFileStream(string filename, FileAccess access = FileAccess.Read)
+    //{
+    //    var longFilename = GetWin32LongPath(filename);
+    //    SafeFileHandle hfile;
+    //    if (access == FileAccess.Write)
+    //    {
+    //        hfile = NativeMethods.CreateFile(longFilename, (int)(NativeMethods.FILE_GENERIC_READ | NativeMethods.FILE_GENERIC_WRITE | NativeMethods.FILE_WRITE_ATTRIBUTES), NativeMethods.FILE_SHARE_NONE, IntPtr.Zero, NativeMethods.OPEN_EXISTING, 0, IntPtr.Zero);
+    //    }
+    //    else
+    //    {
+    //        hfile = NativeMethods.CreateFile(longFilename, (int)NativeMethods.FILE_GENERIC_READ, NativeMethods.FILE_SHARE_READ, IntPtr.Zero, NativeMethods.OPEN_EXISTING, 0, IntPtr.Zero);
+    //    }
 
-        if (hfile.IsInvalid) ThrowWin32Exception();
+    //    if (hfile.IsInvalid) ThrowWin32Exception();
 
-        return new System.IO.FileStream(hfile, access);
-    }
+    //    return new System.IO.FileStream(hfile, access);
+    //}
 
 
     [DebuggerStepThrough]
@@ -280,6 +315,12 @@ internal static class LongFile
 
     public static void SetCreationTime(string path, DateTime creationTime)
     {
+        if (TorpedoSync.Global.isWindows == false)
+        {
+            System.IO.File.SetCreationTime(path, creationTime);
+            return;
+        }
+
         long cTime = 0;
         long aTime = 0;
         long wTime = 0;
@@ -297,6 +338,12 @@ internal static class LongFile
 
     public static void SetLastAccessTime(string path, DateTime lastAccessTime)
     {
+        if (TorpedoSync.Global.isWindows == false)
+        {
+            System.IO.File.SetLastAccessTime(path, lastAccessTime);
+            return;
+        }
+
         long cTime = 0;
         long aTime = 0;
         long wTime = 0;
@@ -315,6 +362,12 @@ internal static class LongFile
 
     public static void SetLastWriteTime(string path, DateTime lastWriteTime)
     {
+        if (TorpedoSync.Global.isWindows == false)
+        {
+            System.IO.File.SetLastWriteTime(path, lastWriteTime);
+            return;
+        }
+
         long cTime = 0;
         long aTime = 0;
         long wTime = 0;
@@ -333,6 +386,9 @@ internal static class LongFile
 
     public static DateTime GetLastWriteTime(string path)
     {
+        if (TorpedoSync.Global.isWindows == false)
+            return System.IO.File.GetLastWriteTime(path);
+
         long cTime = 0;
         long aTime = 0;
         long wTime = 0;

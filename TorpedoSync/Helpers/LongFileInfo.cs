@@ -38,20 +38,31 @@ internal class LongFileInfo
     {
         // Check path here
         FullName = path;
-        Name = path.Split('\\').Last();
+        Name = path.Split(Path.DirectorySeparatorChar).Last();
         Extension = path.Split('.').Last();
-        WIN32_FILE_ATTRIBUTE_DATA fileData;
-
-        // FIXx : ?? Append special suffix \\?\ to allow path lengths up to 32767
-        //path = "\\\\?\\" + path;
-
-        if (!GetFileAttributesEx(path, GET_FILEEX_INFO_LEVELS.GetFileExInfoStandard, out fileData))
+        if (TorpedoSync.Global.isWindows)
         {
-            throw new Win32Exception();
+            WIN32_FILE_ATTRIBUTE_DATA fileData;
+
+            // FIXx : ?? Append special suffix \\?\ to allow path lengths up to 32767
+            //path = "\\\\?\\" + path;
+
+            if (!GetFileAttributesEx(path, GET_FILEEX_INFO_LEVELS.GetFileExInfoStandard, out fileData))
+            {
+                throw new Win32Exception();
+            }
+            Length = (long)(((ulong)fileData.nFileSizeHigh << 32) + (ulong)fileData.nFileSizeLow);
+            CreationTime = DateTime.FromFileTime((((long)fileData.ftCreationTime.dwHighDateTime) << 32) | ((uint)fileData.ftCreationTime.dwLowDateTime));
+            LastWriteTime = DateTime.FromFileTime((((long)fileData.ftLastWriteTime.dwHighDateTime) << 32) | ((uint)fileData.ftLastWriteTime.dwLowDateTime));
+            LastAccessTime = DateTime.FromFileTime((((long)fileData.ftLastAccessTime.dwHighDateTime) << 32) | ((uint)fileData.ftLastAccessTime.dwLowDateTime));
         }
-        Length = (long)(((ulong)fileData.nFileSizeHigh << 32) + (ulong)fileData.nFileSizeLow);
-        CreationTime = DateTime.FromFileTime((((long)fileData.ftCreationTime.dwHighDateTime) << 32) | ((uint)fileData.ftCreationTime.dwLowDateTime));
-        LastWriteTime = DateTime.FromFileTime((((long)fileData.ftLastWriteTime.dwHighDateTime) << 32) | ((uint)fileData.ftLastWriteTime.dwLowDateTime));
-        LastAccessTime = DateTime.FromFileTime((((long)fileData.ftLastAccessTime.dwHighDateTime) << 32) | ((uint)fileData.ftLastAccessTime.dwLowDateTime));
+        else
+        {
+            var fi = new FileInfo(path);
+            Length = fi.Length;
+            CreationTime = fi.CreationTime;
+            LastWriteTime = fi.LastWriteTime;
+            LastAccessTime = fi.LastAccessTime;
+        }
     }
 }
