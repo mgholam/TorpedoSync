@@ -75,8 +75,8 @@ namespace TorpedoSync
                     p.Command = "" + COMMANDS.isChanged;
                     p.Data = new object[]
                     {
-                    share.Name,
-                    Environment.MachineName
+                        share.Name,
+                        Environment.MachineName
                     };
 
                     var ret = (ReturnPacket)send(s.IP.ToString(), p);
@@ -98,11 +98,11 @@ namespace TorpedoSync
                     p.Command = "" + COMMANDS.Download;
                     p.Data = new object[]
                     {
-                    share.Name,
-                    share.Token,
-                    file,
-                    start,
-                    size
+                        share.Name,
+                        share.Token,
+                        file,
+                        start,
+                        size
                     };
 
                     var ret = (ReturnPacket)send(s.IP.ToString(), p);
@@ -127,9 +127,9 @@ namespace TorpedoSync
                     p.Command = "" + COMMANDS.CreateZip;
                     p.Data = new object[]
                     {
-                    share.Name,
-                    share.Token,
-                    files
+                        share.Name,
+                        share.Token,
+                        files
                     };
 
                     var ret = (ReturnPacket)send(s.IP.ToString(), p);
@@ -154,11 +154,11 @@ namespace TorpedoSync
                     p.Command = "" + COMMANDS.DownloadZip;
                     p.Data = new object[]
                     {
-                    share.Name,
-                    share.Token,
-                    file,
-                    start,
-                    size
+                        share.Name,
+                        share.Token,
+                        file,
+                        start,
+                        size
                     };
 
                     var ret = (ReturnPacket)send(s.IP.ToString(), p);
@@ -183,9 +183,9 @@ namespace TorpedoSync
                     p.Command = "" + COMMANDS.DeleteZip;
                     p.Data = new object[]
                     {
-                    share.Name,
-                    share.Token,
-                    file
+                        share.Name,
+                        share.Token,
+                        file
                     };
 
                     var ret = (ReturnPacket)send(s.IP.ToString(), p);
@@ -205,9 +205,9 @@ namespace TorpedoSync
                     p.Command = "" + COMMANDS.isConfirmed;
                     p.Data = new object[]
                     {
-                    Environment.MachineName,
-                    share.Name,
-                    share.Token
+                        Environment.MachineName,
+                        share.Name,
+                        share.Token
                     };
 
                     var ret = (ReturnPacket)send(s.IP.ToString(), p);
@@ -246,7 +246,7 @@ namespace TorpedoSync
             }
             catch { }
             //Console.Write
-              _log.Info("syncread null");
+            _log.Info("syncread null");
             return null;
         }
 
@@ -303,11 +303,11 @@ namespace TorpedoSync
             if (l.Count != c)
             {
                 //Console.WriteLine
-                    _log.Info("List of currently connected machines :");
+                _log.Info("List of currently connected machines :");
                 foreach (var i in ServerList)
                 {
                     //Console.WriteLine
-                      _log.Info("  Connected to : " + i.IP);
+                    _log.Info("  Connected to : " + i.IP);
                 }
             }
         }

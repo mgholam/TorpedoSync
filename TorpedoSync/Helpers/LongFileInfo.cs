@@ -58,7 +58,7 @@ internal class LongFileInfo
         }
         else
         {
-            var fi = new FileInfo(path);
+            var fi = new FileInfo(path.Replace("\\","/"));
             Length = fi.Length;
             CreationTime = fi.CreationTime;
             LastWriteTime = fi.LastWriteTime;

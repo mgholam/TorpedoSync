@@ -317,7 +317,7 @@ internal static class LongFile
     {
         if (TorpedoSync.Global.isWindows == false)
         {
-            System.IO.File.SetCreationTime(path, creationTime);
+            System.IO.File.SetCreationTime(path.Replace("\\","/"), creationTime);
             return;
         }
 
@@ -340,7 +340,7 @@ internal static class LongFile
     {
         if (TorpedoSync.Global.isWindows == false)
         {
-            System.IO.File.SetLastAccessTime(path, lastAccessTime);
+            System.IO.File.SetLastAccessTime(path.Replace("\\", "/"), lastAccessTime);
             return;
         }
 
@@ -364,7 +364,7 @@ internal static class LongFile
     {
         if (TorpedoSync.Global.isWindows == false)
         {
-            System.IO.File.SetLastWriteTime(path, lastWriteTime);
+            System.IO.File.SetLastWriteTime(path.Replace("\\", "/"), lastWriteTime);
             return;
         }
 
@@ -387,7 +387,7 @@ internal static class LongFile
     public static DateTime GetLastWriteTime(string path)
     {
         if (TorpedoSync.Global.isWindows == false)
-            return System.IO.File.GetLastWriteTime(path);
+            return System.IO.File.GetLastWriteTime(path.Replace("\\", "/"));
 
         long cTime = 0;
         long aTime = 0;
