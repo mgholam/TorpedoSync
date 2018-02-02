@@ -24,12 +24,18 @@ internal static class LongFile
 
     public static void Delete(string path)
     {
-        SetAttributes(path, FileAttributes.Normal);
-
-        if (path.Length < MAX_PATH || TorpedoSync.Global.isWindows == false)
+        if (TorpedoSync.Global.isWindows == false)
             System.IO.File.Delete(path.Replace("\\", "/"));
+
+        else if (path.Length < MAX_PATH)
+        {
+            SetAttributes(path, FileAttributes.Normal);
+            System.IO.File.Delete(path);
+        }
+
         else
         {
+            SetAttributes(path, FileAttributes.Normal);
             bool ok = NativeMethods.DeleteFileW(GetWin32LongPath(path));
             if (!ok) ThrowWin32Exception();
         }
@@ -116,6 +122,7 @@ internal static class LongFile
 
         else if (sourceFileName.Length < MAX_PATH && destFileName.Length < MAX_PATH)
             System.IO.File.Copy(sourceFileName, destFileName, overwrite);
+
         else
         {
             var ok = NativeMethods.CopyFileW(GetWin32LongPath(sourceFileName), GetWin32LongPath(destFileName), !overwrite);
@@ -130,6 +137,7 @@ internal static class LongFile
 
         else if (sourceFileName.Length < MAX_PATH && destFileName.Length < MAX_PATH)
             System.IO.File.Move(sourceFileName, destFileName);
+
         else
         {
             var ok = NativeMethods.MoveFileW(GetWin32LongPath(sourceFileName), GetWin32LongPath(destFileName));

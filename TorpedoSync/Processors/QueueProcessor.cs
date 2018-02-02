@@ -17,7 +17,6 @@ namespace TorpedoSync
     class QueueProcessor
     {
         // TODO : better handling of locked files
-        // TODO : change \ to / on different OS
         public QueueProcessor(string path, Connection connection)
         {
             _path = path;
@@ -37,9 +36,16 @@ namespace TorpedoSync
                 File.WriteAllText(_conn.Path + ".ts" + _S + ".ignore", "# comment line\r\n");
 
             // cleanup failed .!torpedosync files
-            foreach (var i in FastDirectoryEnumerator.EnumerateFiles(_conn.Path, "*.!torpedosync", SearchOption.AllDirectories))
-                LongFile.Delete(i.Path);
-
+            if (TorpedoSync.Global.isWindows == true)
+            {
+                foreach (var i in FastDirectoryEnumerator.EnumerateFiles(_conn.Path, "*.!torpedosync", SearchOption.AllDirectories))
+                    LongFile.Delete(i.Path);
+            }
+            else
+            {
+                foreach (var i in Directory.EnumerateFiles(_conn.Path, "*.!torpedosync", SearchOption.AllDirectories))
+                    LongFile.Delete(i);
+            }
             _timer.AutoReset = true;
             _timer.Elapsed += timer_elapsed;
             _timer.Start();
@@ -121,6 +127,7 @@ namespace TorpedoSync
         public void FileSystemWatch_Event(string fn)
         {
             // check against ignore list
+            fn = fn.Replace("/", "\\"); // for unix systems
             if (_conn.Allowed(fn))
             {
                 if (_conn.isChanged == false)
@@ -431,12 +438,20 @@ namespace TorpedoSync
                             string path = _conn.Path + ".ts" + _S + "Temp" + _S;
                             string fn = sf.F;
                             LongDirectory.CreateDirectory(path);
+
                             if (downloadfile(sf, path + fn, ClientCommands.DownloadZip))
                             {
-                                var zf = ZipStorer.Open(path + sf.F, FileAccess.Read);
+                                string zfn = path + sf.F;
+
+                                if (TorpedoSync.Global.isWindows == false)
+                                    zfn = zfn.Replace("\\", "/");
+
+                                var zf = ZipStorer.Open(zfn, FileAccess.Read);
                                 foreach (var z in zf.ReadCentralDir())
                                 {
-                                    fn = z.FilenameInZip.Replace("/", "" + _S);
+                                    if (TorpedoSync.Global.isWindows)
+                                        fn = z.FilenameInZip.Replace("/", "" + _S);
+
                                     MoveExistingFileToArchive(fn);
                                     LongDirectory.CreateDirectory(LongDirectory.GetDirectoryName(_conn.Path + fn));
                                     try
@@ -462,7 +477,7 @@ namespace TorpedoSync
                                 zf.Close();
                                 ClientCommands.DeleteZip(_conn, sf);
                                 _log.Info("Decompress zip done : " + sf.F);
-                                LongFile.Delete(path + sf.F);
+                                LongFile.Delete(zfn);
                             }
                         }
                         _downloading = false;
@@ -477,6 +492,7 @@ namespace TorpedoSync
         private void ProcessFile(SyncFile file)
         {
             string fn = _conn.Path + file.F;
+            //_log.Info("create dir : " + LongDirectory.GetDirectoryName(fn));
             LongDirectory.CreateDirectory(LongDirectory.GetDirectoryName(fn));
 
             if (LongFile.Exists(fn))
@@ -496,7 +512,11 @@ namespace TorpedoSync
             if (LongFile.Exists(fn))
                 LongFile.Delete(fn);
 
+            if (TorpedoSync.Global.isWindows == false)
+                fn = fn.Replace("\\", "/");
+
             _downloading = true;
+
             if (downloadfile(file, fn, ClientCommands.Download))
             {
                 MoveExistingFileToArchive(file.F);
@@ -517,7 +537,6 @@ namespace TorpedoSync
                 if (LongFile.Exists(_conn.Path + file))
                 {
                     string archivepath = _conn.Path + ".ts" + _S + "old" + _S + file;
-                    //Console.WriteLine(" archiving old ");
                     LongDirectory.CreateDirectory(LongDirectory.GetDirectoryName(archivepath));
 
                     // delete old file in archive if exists
@@ -539,9 +558,9 @@ namespace TorpedoSync
             long left = file.S;
             int retry = 0;
             int mb = Global.DownloadBlockSizeMB * Global.MB;
+
             //Stopwatch sw = new Stopwatch();
             //sw.Start();
-
             while (left > 0)
             {
                 long len = left;
@@ -567,13 +586,18 @@ namespace TorpedoSync
                 else if (df.err == DownloadError.OK)
                 {
                     retry = 0;
+                    string ifn = fn;
+                    if (TorpedoSync.Global.isWindows == false)
+                        ifn = fn.Replace("\\", "/");
                     _log.Info("len = " + len + " , " + fn.Replace(".!torpedosync", ""));
                     left -= len;
+                    LongDirectory.CreateDirectory(LongDirectory.GetDirectoryName(ifn));
                     // save to disk
-                    var fs = new FileStream(fn, FileMode.OpenOrCreate);
+                    var fs = new FileStream(ifn, FileMode.OpenOrCreate);
                     fs.Seek(0L, SeekOrigin.End);
                     fs.Write(df.data, 0, df.data.Length);
                     fs.Close();
+                    //_log.Info("-- here --");
                     if (left == 0)
                     {
                         var fi = new LongFileInfo(fn);
