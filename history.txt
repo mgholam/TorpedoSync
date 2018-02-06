@@ -1,0 +1,6 @@
+1.1.0
+- code refactoring
+- working with mono on pi and ubuntu
+
+1.0.0
+- inital release

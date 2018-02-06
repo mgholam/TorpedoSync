@@ -43,8 +43,8 @@ namespace TorpedoSync
             }
             else
             {
-                foreach (var i in Directory.EnumerateFiles(_conn.Path, "*.!torpedosync", SearchOption.AllDirectories))
-                    LongFile.Delete(i);
+                //foreach (var i in Directory.EnumerateFiles(_conn.Path, "*.!torpedosync", SearchOption.AllDirectories))
+                //    LongFile.Delete(i);
             }
             _timer.AutoReset = true;
             _timer.Elapsed += timer_elapsed;
@@ -251,10 +251,6 @@ namespace TorpedoSync
                         {
                             _log.Info("Deleting file : " + _conn.Path + x);
                             string fn = archivefolder + x;
-                            if (LongFile.Exists(fn))
-                                LongFile.Delete(fn);
-
-                            LongDirectory.CreateDirectory(LongDirectory.GetDirectoryName(fn));
                             LongFile.Move(_conn.Path + x, fn);
                         }
                     }
@@ -397,7 +393,6 @@ namespace TorpedoSync
                     }
                     else
                     {
-                        //_log.Info(".");
                         Thread.Sleep(3000);
                     }
                 }
@@ -436,12 +431,12 @@ namespace TorpedoSync
                         if (sf != null)
                         {
                             string path = _conn.Path + ".ts" + _S + "Temp" + _S;
-                            string fn = sf.F;
                             LongDirectory.CreateDirectory(path);
 
-                            if (downloadfile(sf, path + fn, ClientCommands.DownloadZip))
+                            if (downloadfile(sf, path + sf.F, ClientCommands.DownloadZip))
                             {
                                 string zfn = path + sf.F;
+                                string fn = sf.F;
 
                                 if (TorpedoSync.Global.isWindows == false)
                                     zfn = zfn.Replace("\\", "/");
@@ -450,7 +445,9 @@ namespace TorpedoSync
                                 foreach (var z in zf.ReadCentralDir())
                                 {
                                     if (TorpedoSync.Global.isWindows)
-                                        fn = z.FilenameInZip.Replace("/", "" + _S);
+                                        fn = z.FilenameInZip.Replace("/", "\\");
+                                    else
+                                        fn = z.FilenameInZip;
 
                                     MoveExistingFileToArchive(fn);
                                     LongDirectory.CreateDirectory(LongDirectory.GetDirectoryName(_conn.Path + fn));
@@ -467,10 +464,14 @@ namespace TorpedoSync
                                         var dt = z.ModifyTime;
                                         if (z.Comment != "")
                                         {
+                                            //_log.Info($"date {z.Comment}");
                                             if (DateTime.TryParse(z.Comment, out dt) == false)
                                                 dt = z.ModifyTime;
                                         }
-                                        LongFile.SetLastWriteTime(_conn.Path + fn, dt.ToUniversalTime());
+                                        var dtt = dt;
+                                        if (TorpedoSync.Global.isWindows)
+                                            dtt = dt.ToUniversalTime();
+                                        LongFile.SetLastWriteTime(_conn.Path + fn, dtt);
                                     }
                                     catch (Exception ex) { _log.Error(ex); }
                                 }
@@ -509,8 +510,7 @@ namespace TorpedoSync
             // FEATURE : resume semi downloaded file
 
             // remove old semi downloaded file
-            if (LongFile.Exists(fn))
-                LongFile.Delete(fn);
+            LongFile.Delete(fn);
 
             if (TorpedoSync.Global.isWindows == false)
                 fn = fn.Replace("\\", "/");
@@ -521,11 +521,9 @@ namespace TorpedoSync
             {
                 MoveExistingFileToArchive(file.F);
                 // rename downloaded file
-                if (LongFile.Exists(fn))
-                    LongFile.Move(fn, _conn.Path + file.F);
+                LongFile.Move(fn, _conn.Path + file.F);
 
-                if (LongFile.Exists(_conn.Path + file.F))
-                    LongFile.SetLastWriteTime(_conn.Path + file.F, file.D);
+                LongFile.SetLastWriteTime(_conn.Path + file.F, file.D);
             }
             _downloading = false;
         }
@@ -537,12 +535,6 @@ namespace TorpedoSync
                 if (LongFile.Exists(_conn.Path + file))
                 {
                     string archivepath = _conn.Path + ".ts" + _S + "old" + _S + file;
-                    LongDirectory.CreateDirectory(LongDirectory.GetDirectoryName(archivepath));
-
-                    // delete old file in archive if exists
-                    if (LongFile.Exists(archivepath))
-                        LongFile.Delete(archivepath);
-
                     // move existing file to archive
                     LongFile.Move(_conn.Path + file, archivepath);
                 }
@@ -553,7 +545,7 @@ namespace TorpedoSync
             }
         }
 
-        private bool downloadfile(SyncFile file, string fn, Func<Connection, SyncFile, long, int, DFile> func)
+        private bool downloadfile(SyncFile file, string saveto, Func<Connection, SyncFile, long, int, DFile> func)
         {
             long left = file.S;
             int retry = 0;
@@ -578,18 +570,18 @@ namespace TorpedoSync
                     {
                         _log.Info(" null ");
                         _que.Enqueue(file);
-                        if (LongFile.Exists(fn))
-                            LongFile.Delete(fn);
+                        //if (LongFile.Exists(saveto))
+                        LongFile.Delete(saveto);
                         return false;
                     }
                 }
                 else if (df.err == DownloadError.OK)
                 {
                     retry = 0;
-                    string ifn = fn;
+                    string ifn = saveto;
                     if (TorpedoSync.Global.isWindows == false)
-                        ifn = fn.Replace("\\", "/");
-                    _log.Info("len = " + len + " , " + fn.Replace(".!torpedosync", ""));
+                        ifn = saveto.Replace("\\", "/");
+                    _log.Info("len = " + len + " , " + saveto.Replace(".!torpedosync", ""));
                     left -= len;
                     LongDirectory.CreateDirectory(LongDirectory.GetDirectoryName(ifn));
                     // save to disk
@@ -597,10 +589,9 @@ namespace TorpedoSync
                     fs.Seek(0L, SeekOrigin.End);
                     fs.Write(df.data, 0, df.data.Length);
                     fs.Close();
-                    //_log.Info("-- here --");
                     if (left == 0)
                     {
-                        var fi = new LongFileInfo(fn);
+                        var fi = new LongFileInfo(saveto);
                         if (fi.Length != file.S)
                         {
                             // FEATURE : file length don't match
@@ -613,16 +604,15 @@ namespace TorpedoSync
                 {
                     _ErrorQue.Enqueue(file);
                     _connInfo.LastFileNameDownloaded = "";
-                    _log.Info("Locked/Older : " + fn);
+                    _log.Info("Locked/Older : " + saveto);
                     return false;
                 }
                 else if (df.err == DownloadError.NOTFOUND)
                 {
-                    _log.Info("Not Found : " + fn);
+                    _log.Info("Not Found : " + saveto);
                     _connInfo.LastFileNameDownloaded = "";
                     _ErrorQue.Enqueue(file);
-                    if (LongFile.Exists(fn))
-                        LongFile.Delete(fn);
+                    LongFile.Delete(saveto);
                     return false;
                 }
             }

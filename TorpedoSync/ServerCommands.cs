@@ -98,7 +98,7 @@ namespace TorpedoSync
                     {
                         z.AddStream(RaptorDB.Common.ZipStorer.Compression.Deflate,
                             f.F,
-                            fs, f.D, "" + f.D);
+                            fs, f.D, f.D.ToString("yyyy-MM-dd HH:mm:ss"));
                     }
                 }
                 catch (Exception ex) { _log.Error(ex); }

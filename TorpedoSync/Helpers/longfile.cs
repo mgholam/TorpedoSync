@@ -2,7 +2,6 @@
 using System;
 using System.ComponentModel;
 using System.Diagnostics;
-using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
 
@@ -24,18 +23,25 @@ internal static class LongFile
 
     public static void Delete(string path)
     {
+        if (Exists(path) == false)
+            return;
+
         if (TorpedoSync.Global.isWindows == false)
-            System.IO.File.Delete(path.Replace("\\", "/"));
+        {
+            var s = path.Replace("\\", "/");
+            //_log.Info("deleting file : " + s);
+            System.IO.File.Delete(s);
+        }
 
         else if (path.Length < MAX_PATH)
         {
-            SetAttributes(path, FileAttributes.Normal);
+            SetAttributes(path, System.IO.FileAttributes.Normal);
             System.IO.File.Delete(path);
         }
 
         else
         {
-            SetAttributes(path, FileAttributes.Normal);
+            SetAttributes(path, System.IO.FileAttributes.Normal);
             bool ok = NativeMethods.DeleteFileW(GetWin32LongPath(path));
             if (!ok) ThrowWin32Exception();
         }
@@ -48,6 +54,8 @@ internal static class LongFile
 
     public static void AppendAllText(string path, string contents, Encoding encoding)
     {
+        CreateDir(path);
+
         if (TorpedoSync.Global.isWindows == false)
             System.IO.File.AppendAllText(path.Replace("\\", "/"), contents, encoding);
 
@@ -73,6 +81,8 @@ internal static class LongFile
 
     public static void WriteAllText(string path, string contents, Encoding encoding)
     {
+        CreateDir(path);
+
         if (TorpedoSync.Global.isWindows == false)
             System.IO.File.WriteAllText(path.Replace("\\", "/"), contents, encoding);
 
@@ -93,6 +103,8 @@ internal static class LongFile
 
     public static void WriteAllBytes(string path, byte[] bytes)
     {
+        CreateDir(path);
+
         if (TorpedoSync.Global.isWindows == false)
             System.IO.File.WriteAllBytes(path.Replace("\\", "/"), bytes);
 
@@ -117,6 +129,11 @@ internal static class LongFile
 
     public static void Copy(string sourceFileName, string destFileName, bool overwrite)
     {
+        if (Exists(sourceFileName) == false)
+            return;
+
+        CreateDir(destFileName);
+
         if (TorpedoSync.Global.isWindows == false)
             System.IO.File.Copy(sourceFileName.Replace("\\", "/"), destFileName.Replace("\\", "/"), overwrite);
 
@@ -132,6 +149,14 @@ internal static class LongFile
 
     public static void Move(string sourceFileName, string destFileName)
     {
+        if (Exists(sourceFileName) == false)
+            return;
+
+        CreateDir(destFileName);
+
+        if (Exists(destFileName))
+            Delete(destFileName);
+
         if (TorpedoSync.Global.isWindows == false)
             System.IO.File.Move(sourceFileName.Replace("\\", "/"), destFileName.Replace("\\", "/"));
 
@@ -210,8 +235,11 @@ internal static class LongFile
         }
     }
 
-    public static void SetAttributes(string path, FileAttributes attributes)
+    public static void SetAttributes(string path, System.IO.FileAttributes attributes)
     {
+        if (Exists(path) == false)
+            return;
+
         if (TorpedoSync.Global.isWindows == false)
             System.IO.File.SetAttributes(path.Replace("\\","/"), attributes);
 
@@ -225,6 +253,11 @@ internal static class LongFile
     }
 
     #region Helper methods
+
+    private static void CreateDir(string filename)
+    {
+        LongDirectory.CreateDirectory(LongDirectory.GetDirectoryName(filename));
+    }
 
     private static SafeFileHandle CreateFileForWrite(string filename)
     {
@@ -323,6 +356,9 @@ internal static class LongFile
 
     public static void SetCreationTime(string path, DateTime creationTime)
     {
+        if (Exists(path) == false)
+            return;
+
         if (TorpedoSync.Global.isWindows == false)
         {
             System.IO.File.SetCreationTime(path.Replace("\\","/"), creationTime);
@@ -346,6 +382,9 @@ internal static class LongFile
 
     public static void SetLastAccessTime(string path, DateTime lastAccessTime)
     {
+        if (Exists(path) == false)
+            return;
+
         if (TorpedoSync.Global.isWindows == false)
         {
             System.IO.File.SetLastAccessTime(path.Replace("\\", "/"), lastAccessTime);
@@ -370,6 +409,9 @@ internal static class LongFile
 
     public static void SetLastWriteTime(string path, DateTime lastWriteTime)
     {
+        if (Exists(path) == false)
+            return;
+
         if (TorpedoSync.Global.isWindows == false)
         {
             System.IO.File.SetLastWriteTime(path.Replace("\\", "/"), lastWriteTime);

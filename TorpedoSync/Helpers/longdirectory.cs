@@ -10,7 +10,12 @@ internal class LongDirectory
 
     public static string GetDirectoryName(string fn)
     {
-        return fn.Substring(0, fn.LastIndexOf(Path.DirectorySeparatorChar));
+        var i = fn.LastIndexOf("\\");
+        var j = fn.LastIndexOf("/");
+        if (j > i)
+            i = j;
+
+        return fn.Substring(0, i);
     }
 
     public static void CreateDirectory(string path)
