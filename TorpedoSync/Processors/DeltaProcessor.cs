@@ -19,6 +19,7 @@ namespace TorpedoSync
                 share.CurrentState.Folders.Count > 0)
                 return share.CurrentState;
 
+            DateTime dt = FastDateTime.Now;
             State state = new State();
             foreach (var f in LongDirectory.GetDirectories(path, "*.*", SearchOption.AllDirectories))
             {
@@ -49,6 +50,7 @@ namespace TorpedoSync
                         state.Files.Add(new SyncFile { F = fn, D = f.LastWriteTime, S = f.Size });
                 }
             }
+            _log.Info("GetCurrentState total secs = " + FastDateTime.Now.Subtract(dt).TotalSeconds);
             share.CurrentState = state;
             return state;
         }

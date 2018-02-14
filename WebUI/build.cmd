@@ -1,1 +1,1 @@
-npm run build
+npm3 run build

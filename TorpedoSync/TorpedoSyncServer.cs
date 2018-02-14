@@ -34,6 +34,8 @@ namespace TorpedoSync
             _tcpserver.Start(_tcpport, handler);
             _log.Debug("WEB server on port = " + _webport);
 
+            ClientCommands.FillServerList();
+
             _webserver = new TorpedoWeb(
                 _webport,
                 Global.LocalOnlyWeb,
@@ -44,7 +46,6 @@ namespace TorpedoSync
                 System.Net.AuthenticationSchemes.Anonymous,
                 "api");
 
-            ClientCommands.FillServerList();
             StartQueueProcessors();
 
             _timer.AutoReset = true;

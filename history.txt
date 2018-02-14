@@ -1,3 +1,8 @@
+1.2.0
+- bug fix web page refresh extracting server address
+- GetServerIP() retry logic
+- changed build run scripts for npm3
+
 1.1.0
 - code refactoring
 - working with mono on pi and ubuntu

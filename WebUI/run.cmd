@@ -1,1 +1,1 @@
-npm run dev
+npm3 run dev

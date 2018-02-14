@@ -314,7 +314,17 @@ namespace TorpedoSync
 
         public static ServerAddress GetServerIP(string name)
         {
-            var i = ServerList.Find(x => x.Name == name);
+            var retry = 0;
+            ServerAddress i = null;
+            while (i == null && retry < 5)
+            {
+                i = ServerList.Find(x => x.Name == name);
+                if (i == null)
+                {
+                    System.Threading.Thread.Sleep(100);
+                    retry++;
+                }
+            }
             return i;
         }
 

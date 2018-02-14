@@ -12,7 +12,7 @@ require('./css/style.css')
 require('./css/icons.css')
 require('./css/glyphicons-halflings-regular.woff')
 
-window.ServerURL = document.location.href;
+window.ServerURL = document.location.protocol + "//" + document.location.hostname + ":" + document.location.port + "/";
 window.draggable = /windows/i.test(navigator.userAgent);
 
 new Vue({
