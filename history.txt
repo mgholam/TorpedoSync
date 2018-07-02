@@ -1,3 +1,8 @@
+1.3.0
+- streamlined tcp network code
+- removed retry if master returned null -> redo in next sync (edge case queue stuck and not syncing)
+- check if file exists when ziping (no more exceptions in logs)
+
 1.2.0
 - bug fix web page refresh extracting server address
 - GetServerIP() retry logic

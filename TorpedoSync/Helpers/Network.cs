@@ -2,21 +2,20 @@
 using System.Net.Sockets;
 using System.Threading;
 using System.Net;
-using System.Threading.Tasks;
-using RaptorDB;
-using RaptorDB.Common;
+using System.IO;
 
 namespace TorpedoSync
 {
     //
-    // Header bits format : 0 - json = 1 , bin = 0 
-    //                      1 - binaryjson = 1 , text json = 0
-    //                      2 - compressed = 1 , uncompressed = 0 
+    // Header bits format : 0 - json = 1 , bin = 0
+    //                      1 - binary json = 1 , text json = 0
+    //                      2 - compressed = 1 , uncompressed = 0
     //
     //     0   : data format
     //     1-4 : data length
+    //     n   : data bytes
 
-    internal class NetworkClient
+    public class NetworkClient
     {
         public static class Config
         {
@@ -27,11 +26,11 @@ namespace TorpedoSync
             /// <summary>
             /// Log data if over (default = 1,000,000)
             /// </summary>
-            public static int LogDataSizesOver = 1000000;
+            public static int LogDataSizesOver = 1000 * 1000;
             /// <summary>
             /// Compress data if over (default = 1,000,000)
             /// </summary>
-            public static int CompressDataOver = 1000000;
+            public static int CompressDataOver = 1000 * 1000;
             /// <summary>
             /// Kill inactive client connections (default = 30sec)
             /// </summary>
@@ -43,7 +42,9 @@ namespace TorpedoSync
             _server = server;
             _port = port;
         }
-        private ILog log = LogManager.GetLogger(typeof(NetworkClient));
+#if minilzo
+        private RaptorDB.ILog log = RaptorDB.LogManager.GetLogger(typeof(NetworkClient));
+#endif
         private TcpClient _client;
         private string _server;
         private int _port;
@@ -54,8 +55,8 @@ namespace TorpedoSync
         public void Connect()
         {
             _client = new TcpClient(_server, _port);
+            _client.ReceiveBufferSize = 0;
             _client.SendBufferSize = Config.BufferSize;
-            _client.ReceiveBufferSize = _client.SendBufferSize;
         }
 
         public object Send(object data)
@@ -64,38 +65,43 @@ namespace TorpedoSync
             {
                 CheckConnection();
 
-                byte[] hdr = new byte[5];
-                hdr[0] = (UseBJSON ? (byte)3 : (byte)0);
                 byte[] dat = fastBinaryJSON.BJSON.ToBJSON(data);
                 bool compressed = false;
+#if minilzo
                 if (dat.Length > NetworkClient.Config.CompressDataOver)
                 {
                     log.Info("compressing data over limit : " + dat.Length.ToString("#,#"));
                     compressed = true;
-                    dat = MiniLZO.Compress(dat);
+                    dat = RaptorDB.MiniLZO.Compress(dat);
                     log.Info("new size : " + dat.Length.ToString("#,#"));
                 }
+#endif
                 byte[] len = Helper.GetBytes(dat.Length, false);
-                hdr[0] = (byte)(3 + (compressed ? 4 : 0));
-                Array.Copy(len, 0, hdr, 1, 4);
-                _client.Client.Send(hdr);
-                _client.Client.Send(dat);
 
-                byte[] rechdr = new byte[5];
-                using (NetworkStream n = new NetworkStream(_client.Client))
+                using (NetworkStream ns = new NetworkStream(_client.Client))
                 {
-                    n.Read(rechdr, 0, 5);
-                    int c = Helper.ToInt32(rechdr, 1);
-                    byte[] recd = new byte[c];
+                    BufferedStream n = new BufferedStream(ns, Config.BufferSize);
+                    // header
+                    n.WriteByte((byte)((UseBJSON ? 3 : 0) + (compressed ? 4 : 0)));
+                    n.Write(len, 0, 4);
+                    // data
+                    n.Write(dat, 0, dat.Length);
+                    // read response
+                    byte[] hdr = new byte[5];
+                    n.Read(hdr, 0, 5);
+                    int count = Helper.ToInt32(hdr, 1);
+                    byte[] recd = new byte[count];
                     int bytesRead = 0;
                     int chunksize = 1;
-                    while (bytesRead < c && chunksize > 0)
+                    while (bytesRead < count && chunksize > 0)
                         bytesRead +=
                           chunksize = n.Read
-                            (recd, bytesRead, c - bytesRead);
-                    if ((rechdr[0] & (byte)4) == (byte)4)
-                        recd = MiniLZO.Decompress(recd);
-                    if ((rechdr[0] & (byte)3) == (byte)3)
+                            (recd, bytesRead, count - bytesRead);
+#if minilzo
+                    if ((hdr[0] & (byte)4) == (byte)4)
+                        recd = RaptorDB.MiniLZO.Decompress(recd);
+#endif
+                    if ((hdr[0] & (byte)3) == (byte)3)
                         return fastBinaryJSON.BJSON.ToObject(recd);
                 }
             }
@@ -123,31 +129,37 @@ namespace TorpedoSync
         }
     }
 
-    internal class NetworkServer
+    public class NetworkServer
     {
         public delegate object ProcessPayload(object data);
-
-        private ILog log = LogManager.GetLogger(typeof(NetworkServer));
+#if minilzo
+        private RaptorDB.ILog log = RaptorDB.LogManager.GetLogger(typeof(NetworkServer));
+#endif
         ProcessPayload _handler;
         private bool _run = true;
-        private int count = 0;
         private int _port;
+
+        private void RunThread(Action st)
+        {
+            System.Threading.Tasks.Task.Factory.StartNew(st);
+            //var t = new Thread(st.Invoke);
+            //t.IsBackground = true;
+            //t.Start();
+        }
 
         public void Start(int port, ProcessPayload handler)
         {
             _handler = handler;
             _port = port;
             ThreadPool.SetMinThreads(50, 50);
-            //System.Timers.Timer t = new System.Timers.Timer(1000);
-            //t.AutoReset = true;
-            //t.Start();
-            //t.Elapsed += new System.Timers.ElapsedEventHandler(t_Elapsed);
-            Task.Factory.StartNew(() => Run(), TaskCreationOptions.AttachedToParent);
+            RunThread(Run);
         }
 
         private void Run()
         {
             TcpListener listener = new TcpListener(IPAddress.Any, _port);
+            listener.Server.ReceiveBufferSize = 0;
+            listener.Server.SendBufferSize = NetworkClient.Config.BufferSize;
             listener.Start();
 
             while (_run)
@@ -155,20 +167,11 @@ namespace TorpedoSync
                 try
                 {
                     TcpClient c = listener.AcceptTcpClient();
-                    Task.Factory.StartNew(() => Accept(c));
-                    //c.Close();
-                    //Thread.Sleep(0);
+                    RunThread(() => Accept(c));
                 }
-                catch (Exception ex) { log.Error(ex); }
+                catch { }// (Exception ex) { log.Error(ex); }
             }
         }
-
-        //void t_Elapsed(object sender, System.Timers.ElapsedEventArgs e)
-        //{
-        //    if (count > 0)
-        //        log.Info("tcp connects/sec = " + count);
-        //    count = 0;
-        //}
 
         public void Stop()
         {
@@ -177,14 +180,15 @@ namespace TorpedoSync
 
         void Accept(TcpClient client)
         {
-            using (NetworkStream n = client.GetStream())
+            client.ReceiveBufferSize = 0;
+            client.SendBufferSize = NetworkClient.Config.BufferSize;
+            using (NetworkStream ns = client.GetStream())
             {
-                //while (client.Connected)
+                BufferedStream n = new BufferedStream(ns, NetworkClient.Config.BufferSize);
                 {
-                    this.count++;
-                    byte[] c = new byte[5];
-                    n.Read(c, 0, 5);
-                    int count = BitConverter.ToInt32(c, 1);
+                    byte[] hdr = new byte[5];
+                    n.Read(hdr, 0, 5);
+                    int count = BitConverter.ToInt32(hdr, 1);
                     byte[] data = new byte[count];
                     int bytesRead = 0;
                     int chunksize = 1;
@@ -192,34 +196,35 @@ namespace TorpedoSync
                         bytesRead +=
                           chunksize = n.Read
                             (data, bytesRead, count - bytesRead);
-                    if ((c[0] & (byte)4) == (byte)4)
-                        data = MiniLZO.Decompress(data);
-
+#if minilzo
+                    if ((hdr[0] & (byte)4) == (byte)4)
+                        data = RaptorDB.MiniLZO.Decompress(data);
+#endif
                     object o = fastBinaryJSON.BJSON.ToObject(data);
-
+                    // handle payload
                     object r = _handler(o);
                     bool compressed = false;
                     var dataret = fastBinaryJSON.BJSON.ToBJSON(r);
-                    //r = null;
+#if minilzo
                     if (dataret.Length > NetworkClient.Config.CompressDataOver)
                     {
                         log.Info("compressing data over limit : " + dataret.Length.ToString("#,#"));
                         compressed = true;
-                        dataret = MiniLZO.Compress(dataret);
+                        dataret = RaptorDB.MiniLZO.Compress(dataret);
                         log.Info("new size : " + dataret.Length.ToString("#,#"));
                     }
                     if (dataret.Length > NetworkClient.Config.LogDataSizesOver)
                         log.Info("data size (bytes) = " + dataret.Length.ToString("#,#"));
-
-                    byte[] b = BitConverter.GetBytes(dataret.Length);
-                    byte[] hdr = new byte[5];
-                    hdr[0] = (byte)(3 + (compressed ? 4 : 0));
-                    Array.Copy(b, 0, hdr, 1, 4);
-                    n.Write(hdr, 0, 5);
+#endif
+                    byte[] len = Helper.GetBytes(dataret.Length, false);
+                    // header
+                    n.WriteByte((byte)((true ? 3 : 0) + (compressed ? 4 : 0)));
+                    n.Write(len, 0, 4);
+                    // data
                     n.Write(dataret, 0, dataret.Length);
-
                     n.Flush();
-                    n.Close();
+                    //n.Close();
+
                     //client.Close();
                     //int wait = 0;
                     //bool close = false;
@@ -232,7 +237,7 @@ namespace TorpedoSync
                     //    else
                     //    {
                     //        Thread.Sleep(1);
-                    //        // wait done -> close connection 
+                    //        // wait done -> close connection
                     //        if (FastDateTime.Now.Subtract(dt).TotalSeconds > NetworkClient.Config.KillConnectionSeconds)
                     //            close = true;
                     //    }
@@ -240,10 +245,31 @@ namespace TorpedoSync
                     //if (close)
                     //    break;
                 }
-                //n.Close();
             }
             client.Close();
-            //Console.Write("c");
+        }
+    }
+
+    internal static class Helper
+    {
+        public static unsafe int ToInt32(byte[] value, int startIndex)
+        {
+            fixed (byte* numRef = &(value[startIndex]))
+            {
+                return *((int*)numRef);
+            }
+        }
+
+        public static unsafe byte[] GetBytes(int num, bool reverse)
+        {
+            byte[] buffer = new byte[4];
+            fixed (byte* numRef = buffer)
+            {
+                *((int*)numRef) = num;
+            }
+            if (reverse)
+                Array.Reverse(buffer);
+            return buffer;
         }
     }
 }

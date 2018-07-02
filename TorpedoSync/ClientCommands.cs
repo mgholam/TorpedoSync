@@ -244,7 +244,7 @@ namespace TorpedoSync
                     return d;
                 }
             }
-            catch { }
+            catch (Exception ex){ _log.Error(ex); }
             //Console.Write
             _log.Info("syncread null");
             return null;
@@ -277,7 +277,9 @@ namespace TorpedoSync
                     return d;
                 }
             }
-            catch { }
+            catch (Exception ex){ _log.Error(ex); }
+            _log.Info("syncrw null");
+
             return null;
         }
 

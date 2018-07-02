@@ -91,6 +91,8 @@ namespace TorpedoSync
                 SyncFile f = (SyncFile)ff;
                 try
                 {
+                    if (File.Exists(sharepath + f.F) == false)
+                        continue;
                     //Console.WriteLine
                     _log.Info("ziping : " + f.F);
                     //_log.Debug("ziping : " + f.F);

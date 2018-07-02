@@ -31,8 +31,6 @@
             </div>
           </li>
         </ul>
-
-
         <div class="tab-content" id="shares">
           <h2><span class="gi gi-folder-open" style="margin-right:10px;"></span>Shares on this machine</h2>
           If you have a folder on this machine you want others to connect to, add that folder below.
@@ -40,16 +38,13 @@
           <br/>
           <share :shares="shares" @refresh="refresh" />
         </div>
-        
         <div class="tab-content" id="connections">
           <h2><span class="gi gi-transfer" style="margin-right:10px;"></span>Connections to other machines</h2>
           <connection :connections="connections" @refresh="refresh"></connection>
         </div>
-        
         <div class="tab-content" id="settings">
           <settings :configs="configs" @refresh="refresh"></settings>
         </div>
-        
         <div class="tab-content" id="logs">
           <h2>Logs</h2>
           <p>Will be refreshed every {{logtimersec}} sec.</p>
@@ -60,7 +55,6 @@
             </div>
           </div>
         </div>
-        
         <div class="tab-content" id="help">
           <h2>Definitions</h2>
           <p>To understand what is implemented in<code>TorpedoSync</code> you must be familiar with the following definitions:</p>
@@ -133,7 +127,6 @@
       },
       refresh() {
         this.server = window.ServerURL;
-        
         if (this.timer === '') {
           this.timer = setInterval(this.refresh, this.logtimersec * 1000);
         }

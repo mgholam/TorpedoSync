@@ -564,12 +564,12 @@ namespace TorpedoSync
                 //_connInfo.Mbs = (len / sw.ElapsedTicks) / (1000*TimeSpan.TicksPerSecond) ;
                 if (df == null)
                 {
-                    retry++;
-                    Thread.Sleep(new Random((int)FastDateTime.Now.Ticks).Next(2000) + 500);
-                    if (retry > 10)
+                    //retry++;
+                    //Thread.Sleep(new Random((int)FastDateTime.Now.Ticks).Next(2000) + 500);
+                    //if (retry > 10)
                     {
-                        _log.Info(" null ");
-                        _que.Enqueue(file);
+                        _log.Info("null data : " + saveto);
+                        //_que.Enqueue(file);
                         //if (LongFile.Exists(saveto))
                         LongFile.Delete(saveto);
                         return false;
