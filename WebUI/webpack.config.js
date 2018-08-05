@@ -37,7 +37,7 @@ module.exports = {
                 env === 'production'
                     ? ExtractTextPlugin.extract({
                         fallback: 'style-loader',
-                        use: [ 'css-loader' ]
+                        use: [ {loader: 'css-loader' , options:{ sourceMap:false, minimize:true} }]
                     })
                     :
                  [ 'style-loader', 'css-loader' ]
@@ -73,7 +73,7 @@ if (process.env.NODE_ENV === 'production') {
     module.exports.plugins = (module.exports.plugins || []).concat([
         new ExtractTextPlugin({
             filename: '[name].css'
-            // ,sourceMap : false
+            //,sourceMap : false
         })
         ,
         new webpack.DefinePlugin({
