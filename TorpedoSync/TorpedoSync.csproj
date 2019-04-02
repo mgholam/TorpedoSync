@@ -61,9 +61,11 @@
     <Compile Include="RDBCommon\fastBinaryJSON\BJsonParser.cs" />
     <Compile Include="RDBCommon\fastBinaryJSON\BJsonSerializer.cs" />
     <Compile Include="RDBCommon\fastBinaryJSON\dynamic.cs" />
+    <Compile Include="RDBCommon\fastBinaryJSON\Helper.cs" />
     <Compile Include="RDBCommon\fastJSON\dynamic.cs" />
     <Compile Include="RDBCommon\fastJSON\Formatter.cs" />
     <Compile Include="RDBCommon\fastJSON\Getters.cs" />
+    <Compile Include="RDBCommon\fastJSON\Helper.cs" />
     <Compile Include="RDBCommon\fastJSON\JSON.cs" />
     <Compile Include="RDBCommon\fastJSON\JsonParser.cs" />
     <Compile Include="RDBCommon\fastJSON\JsonSerializer.cs" />
@@ -90,18 +92,18 @@
     <Compile Include="TorpedoWeb.cs" />
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="WEB\dist\build.js" />
-    <EmbeddedResource Include="WEB\dist\fonts\glyphicons-halflings-regular.woff" />
     <EmbeddedResource Include="WEB\main.html" />
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="WEB\dist\main.css" />
-  </ItemGroup>
-  <ItemGroup>
-    <EmbeddedResource Include="WEB\dist\main.css.map" />
+    <EmbeddedResource Include="WEB\main.css" />
   </ItemGroup>
   <ItemGroup>
     <None Include="app.manifest" />
+    <EmbeddedResource Include="WEB\glyphicons-halflings-regular.woff" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="WEB\css\style.css" />
+    <EmbeddedResource Include="WEB\main.js" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>

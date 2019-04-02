@@ -6,7 +6,6 @@ using System.Data;
 #endif
 using System.IO;
 using System.Collections.Specialized;
-using RaptorDB.Common;
 using fastJSON;
 
 namespace fastBinaryJSON
@@ -184,26 +183,30 @@ namespace fastBinaryJSON
             _output.Write(b, 0, b.Length);
         }
 
-        private void WriteException(Exception obj)
-        {
-           
-        }
-
         private void WriteTypedArray(ICollection array)
         {
             bool pendingSeperator = false;
             bool token = true;
             var t = array.GetType();
-            if (t != null) // non generic array
+            if (t.IsGenericType == false)// != null) // non generic array
             {
-                if (t.GetElementType().IsClass)
+                //if (t.GetElementType().IsClass)
                 {
-                    _output.WriteByte(TOKENS.ARRAY_TYPED);
                     token = false;
                     // array type name
-                    byte[] b = Reflection.Instance.utf8.GetBytes(Reflection.Instance.GetTypeAssemblyName(t.GetElementType()));
-                    _output.WriteByte((byte)b.Length);
-                    _output.Write(b, 0, b.Length % 256);
+                    byte[] b = Reflection.UTF8GetBytes(Reflection.Instance.GetTypeAssemblyName(t.GetElementType())); // utf8 : backward compatible
+                    if (b.Length < 256)
+                    {
+                        _output.WriteByte(TOKENS.ARRAY_TYPED);
+                        _output.WriteByte((byte)b.Length);
+                        _output.Write(b, 0, b.Length);
+                    }
+                    else
+                    {
+                        _output.WriteByte(TOKENS.ARRAY_TYPED_LONG);
+                        _output.Write(Helper.GetBytes(b.Length, false), 0, 2);
+                        _output.Write(b, 0, b.Length);
+                    }
                     // array count
                     _output.Write(Helper.GetBytes(array.Count, false), 0, 4); //count
                 }
@@ -675,8 +678,17 @@ namespace fastBinaryJSON
 
         private void WriteName(string s)
         {
-            _output.WriteByte(TOKENS.NAME);
-            byte[] b = Reflection.Instance.utf8.GetBytes(s);
+            byte[] b;
+            if (_params.UseUnicodeStrings == false)
+            {
+                _output.WriteByte(TOKENS.NAME);
+                b = Reflection.UTF8GetBytes(s);
+            }
+            else
+            {
+                _output.WriteByte(TOKENS.NAME_UNI);
+                b = Reflection.UnicodeGetBytes(s);
+            }
             _output.WriteByte((byte)b.Length);
             _output.Write(b, 0, b.Length % 256);
         }
@@ -687,12 +699,12 @@ namespace fastBinaryJSON
             if (_params.UseUnicodeStrings)
             {
                 _output.WriteByte(TOKENS.UNICODE_STRING);
-                b = Reflection.Instance.unicode.GetBytes(s);
+                b = Reflection.UnicodeGetBytes(s);
             }
             else
             {
                 _output.WriteByte(TOKENS.STRING);
-                b = Reflection.Instance.utf8.GetBytes(s);
+                b = Reflection.UTF8GetBytes(s);
             }
             _output.Write(Helper.GetBytes(b.Length, false), 0, 4);
             _output.Write(b, 0, b.Length);

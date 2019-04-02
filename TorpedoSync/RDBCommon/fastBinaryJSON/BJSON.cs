@@ -42,6 +42,8 @@ namespace fastBinaryJSON
         public const byte ARRAY_TYPED = 28;
         public const byte TYPES_POINTER = 29;
         public const byte TIMESPAN = 30;
+        public const byte ARRAY_TYPED_LONG = 31;
+        public const byte NAME_UNI = 32;
     }
 
     public class typedarray
@@ -115,6 +117,26 @@ namespace fastBinaryJSON
             if (EnableAnonymousTypes)
                 ShowReadOnlyProperties = true;
         }
+
+        internal BJSONParameters MakeCopy()
+        {
+            return new BJSONParameters
+            {  
+                UseOptimizedDatasetSchema = UseOptimizedDatasetSchema,
+                ShowReadOnlyProperties = ShowReadOnlyProperties,
+                EnableAnonymousTypes = EnableAnonymousTypes,
+                UsingGlobalTypes = UsingGlobalTypes,
+                IgnoreAttributes = new List<Type>(IgnoreAttributes),
+                //IgnoreCaseOnDeserialize = IgnoreCaseOnDeserialize,
+                UseUnicodeStrings = UseUnicodeStrings,
+                SerializeNulls = SerializeNulls,
+                ParametricConstructorOverride = ParametricConstructorOverride,
+                SerializerMaxDepth = SerializerMaxDepth,
+                UseTypedArrays = UseTypedArrays,
+                UseExtensions = UseExtensions,
+                UseUTCDateTime = UseUTCDateTime                
+            };
+        }
     }
 
     public static class BJSON
@@ -171,6 +193,7 @@ namespace fastBinaryJSON
         public static byte[] ToBJSON(object obj, BJSONParameters param)
         {
             param.FixValues();
+            param = param.MakeCopy();
             Type t = null;
             if (obj == null)
                 return new byte[] { TOKENS.NULL };
@@ -232,6 +255,7 @@ namespace fastBinaryJSON
         public static object ToObject(byte[] json, BJSONParameters param)
         {
             param.FixValues();
+            param = param.MakeCopy();
             return new deserializer(param).ToObject(json, null);
         }
         /// <summary>
@@ -267,6 +291,7 @@ namespace fastBinaryJSON
         public deserializer(BJSONParameters param)
         {
             _params = param;
+            _params = param.MakeCopy();
         }
 
         private BJSONParameters _params;
@@ -285,15 +310,16 @@ namespace fastBinaryJSON
 
         public object ToObject(byte[] json, Type type)
         {
-            _params.FixValues();
+            //_params.FixValues();
             Type t = null;
             if (type != null && type.IsGenericType)
                 t = Reflection.Instance.GetGenericTypeDefinition(type);// type.GetGenericTypeDefinition();
-            if (t == typeof(Dictionary<,>) || t == typeof(List<>))
-                _params.UsingGlobalTypes = false;
             _globalTypes = _params.UsingGlobalTypes;
+            if (t == typeof(Dictionary<,>) || t == typeof(List<>))
+                _globalTypes = false;
 
             var o = new BJsonParser(json, _params.UseUTCDateTime).Decode();
+            if (type?.IsEnum == true) return CreateEnum(type, o);
 #if !SILVERLIGHT
             if (type != null && type == typeof(DataSet))
                 return CreateDataset(o as Dictionary<string, object>, null);
@@ -303,7 +329,7 @@ namespace fastBinaryJSON
 #endif
             if (o is typedarray)
             {
-                return ParseTypedArray(null, o);
+                return ParseTypedArray(new Dictionary<string, object>(), o);
             }
             if (o is IDictionary)
             {
@@ -323,8 +349,20 @@ namespace fastBinaryJSON
 
                 if (type == typeof(Hashtable))
                     return RootHashTable((List<object>)o);
-                else
-                    return (o as List<object>).ToArray();
+                else if (type == null)
+                {
+                    List<object> l = (List<object>)o;
+                    if (l.Count > 0 && l[0].GetType() == typeof(Dictionary<string, object>))
+                    {
+                        Dictionary<string, object> globals = new Dictionary<string, object>();
+                        List<object> op = new List<object>();
+                        // try to get $types 
+                        foreach (var i in l)
+                            op.Add(ParseDictionary((Dictionary<string, object>)i, globals, null, null));
+                        return op;
+                    }
+                    return l.ToArray();
+                }
             }
             else if (type != null && o.GetType() != type)
                 return ChangeType(o, type);
@@ -371,13 +409,15 @@ namespace fastBinaryJSON
         private object RootList(object parse, Type type)
         {
             Type[] gtypes = Reflection.Instance.GetGenericArguments(type);// type.GetGenericArguments();
-            IList o = (IList)Reflection.Instance.FastCreateInstance(type);
+            IList o = (IList)Reflection.Instance.FastCreateList(type, ((IList)parse).Count);
+            Dictionary<string, object> globals = new Dictionary<string, object>();
+
             foreach (var k in (IList)parse)
             {
                 _globalTypes = false;
                 object v = k;
                 if (k is Dictionary<string, object>)
-                    v = ParseDictionary(k as Dictionary<string, object>, null, gtypes[0], null);
+                    v = ParseDictionary(k as Dictionary<string, object>, globals, gtypes[0], null);
                 else
                     v = k;
 
@@ -407,8 +447,10 @@ namespace fastBinaryJSON
                     _globalTypes = false;
                     object v;
                     object k = kv.Key;
+                    if (t2.Name.StartsWith("Dictionary")) // deserialize a dictionary
+                        v = RootDictionary(kv.Value, t2);
 
-                    if (kv.Value is Dictionary<string, object>)
+                    else if (kv.Value is Dictionary<string, object>)
                         v = ParseDictionary(kv.Value as Dictionary<string, object>, null, t2, null);
 
                     else if (t2 == typeof(byte[]))
@@ -461,6 +503,9 @@ namespace fastBinaryJSON
                 }
             }
 
+            if (globaltypes != null)
+                _globalTypes = true;
+
             bool found = d.TryGetValue("$type", out tn);
 #if !SILVERLIGHT
             if (found == false && type == typeof(System.Object))
@@ -500,12 +545,12 @@ namespace fastBinaryJSON
                 _cirrev.Add(circount, o);
             }
 
-            Dictionary<string, myPropInfo> props = Reflection.Instance.Getproperties(type, typename);//, Reflection.Instance.IsTypeRegistered(type));
+            Dictionary<string, myPropInfo> props = Reflection.Instance.Getproperties(type, typename, _params.ShowReadOnlyProperties);//, Reflection.Instance.IsTypeRegistered(type));
             foreach (var kv in d)
             {
                 var n = kv.Key;
                 var v = kv.Value;
-                string name = n.ToLower();
+                string name = n.ToLowerInvariant();
                 myPropInfo pi;
                 if (props.TryGetValue(name, out pi) == false)
                     continue;
@@ -661,7 +706,7 @@ namespace fastBinaryJSON
         {
             if (pt != typeof(object))
             {
-                IList col = (IList)Reflection.Instance.FastCreateInstance(pt);
+                IList col = (IList)Reflection.Instance.FastCreateList(pt, data.Count);
                 // create an array of objects
                 foreach (object ob in data)
                 {
@@ -694,7 +739,7 @@ namespace fastBinaryJSON
                 t2 = types[1];
 
             Type generictype = null;
-            var ga = t2.GetGenericArguments();
+            var ga = Reflection.Instance.GetGenericArguments(t2);
             if (ga.Length > 0)
                 generictype = ga[0];
             arraytype = t2.GetElementType();

@@ -1,1 +1,1 @@
-npm3 run build
+parcel build --no-source-maps src\main.js  src/css/style.css

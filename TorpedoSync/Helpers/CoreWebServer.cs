@@ -12,7 +12,13 @@ namespace TorpedoSync
 {
     internal abstract class CoreWebServer
     {
-        public CoreWebServer(int HttpPort, bool localonly, bool embeddedresources, AuthenticationSchemes authenticationType, string apiPrefix, string startpage)
+        public CoreWebServer(
+            int HttpPort, 
+            bool localonly, 
+            bool embeddedresources, 
+            AuthenticationSchemes authenticationType, 
+            string apiPrefix, 
+            string startpage)
         {
             _embedded = embeddedresources;
             _apiPrefix = apiPrefix;

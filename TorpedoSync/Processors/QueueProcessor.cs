@@ -269,18 +269,18 @@ namespace TorpedoSync
                             LongDirectory.Move(_conn.Path + x, archivefolder + x);
                         }
                         catch { }
-                        try
-                        {
-                            var f = LongDirectory.GetFiles(_conn.Path + x, "*.*", SearchOption.AllDirectories);
-                            if (f.Length == 0)
-                            {
-                                LongDirectory.Delete(_conn.Path + x, true);
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            _log.Error(ex);
-                        }
+                        //try
+                        //{
+                        //    var f = LongDirectory.GetFiles(_conn.Path + x, "*.*", SearchOption.AllDirectories);
+                        //    if (f.Length == 0)
+                        //    {
+                        //        LongDirectory.Delete(_conn.Path + x, true);
+                        //    }
+                        //}
+                        //catch (Exception ex)
+                        //{
+                        //    _log.Error(ex);
+                        //}
                     }
                 });
                 d.FilesAdded.ForEach(x =>
@@ -548,7 +548,7 @@ namespace TorpedoSync
         private bool downloadfile(SyncFile file, string saveto, Func<Connection, SyncFile, long, int, DFile> func)
         {
             long left = file.S;
-            int retry = 0;
+            //int retry = 0;
             int mb = Global.DownloadBlockSizeMB * Global.MB;
 
             //Stopwatch sw = new Stopwatch();
@@ -577,7 +577,7 @@ namespace TorpedoSync
                 }
                 else if (df.err == DownloadError.OK)
                 {
-                    retry = 0;
+                    //retry = 0;
                     string ifn = saveto;
                     if (TorpedoSync.Global.isWindows == false)
                         ifn = saveto.Replace("\\", "/");
