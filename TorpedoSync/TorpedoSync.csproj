@@ -102,7 +102,6 @@
     <EmbeddedResource Include="WEB\glyphicons-halflings-regular.woff" />
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="WEB\css\style.css" />
     <EmbeddedResource Include="WEB\main.js" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
