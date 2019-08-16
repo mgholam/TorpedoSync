@@ -1,12 +1,16 @@
 // ZipStorer, by Jaime Olivares
-// Website: zipstorer.codeplex.com
-// Version: 2.35 (March 14, 2010)
+// Website: http://github.com/jaime-olivares/zipstorer
+// Version: 3.5.0 (May 20, 2019)
 
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using System.Text;
+
+#if !NOASYNC
+    using System.Threading.Tasks;
+#endif
 
 namespace RaptorDB.Common
 {
@@ -109,10 +113,10 @@ namespace RaptorDB.Common
         private static void docompressdirectory(ZipStorer zip, string dir, string prefix, bool recursive, Action<string> log)
         {
             if (recursive)
-                foreach (var d in LongDirectory.GetDirectories(dir))
+                foreach (var d in Directory.GetDirectories(dir))
                     docompressdirectory(zip, d, prefix, recursive, log);
 
-            foreach (string path in LongDirectory.GetFiles(dir))
+            foreach (string path in Directory.GetFiles(dir))
             {
                 var fn = path.Replace(prefix, "");
                 zip.AddFile(ZipStorer.Compression.Deflate, path, fn, "");
@@ -120,7 +124,6 @@ namespace RaptorDB.Common
             }
         }
     }
-
     /// <summary>
     /// Unique class for compression/decompression file. Represents a Zip file.
     /// </summary>
@@ -129,9 +132,8 @@ namespace RaptorDB.Common
         /// <summary>
         /// Compression method enumeration
         /// </summary>
-        public enum Compression : ushort
-        {
-            /// <summary>Uncompressed storage</summary> 
+        public enum Compression : ushort {
+            /// <summary>Uncompressed storage</summary>
             Store = 0,
             /// <summary>Deflate compression method</summary>
             Deflate = 8
@@ -140,7 +142,7 @@ namespace RaptorDB.Common
         /// <summary>
         /// Represents an entry in Zip file directory
         /// </summary>
-        public struct ZipFileEntry
+        public class ZipFileEntry
         {
             /// <summary>Compression method</summary>
             public Compression Method;
@@ -160,6 +162,10 @@ namespace RaptorDB.Common
             public uint Crc32;
             /// <summary>Last modification time of file</summary>
             public DateTime ModifyTime;
+            /// <summary>Creation time of file</summary>
+            public DateTime CreationTime;
+            /// <summary>Last access time of file</summary>
+            public DateTime AccessTime;
             /// <summary>User comment for file</summary>
             public string Comment;
             /// <summary>True if UTF8 encoding for filename and comments, false if default (CP 437)</summary>
@@ -173,14 +179,14 @@ namespace RaptorDB.Common
             }
         }
 
-        #region Public fields
+#region Public fields
         /// <summary>True if UTF8 encoding for filename and comments, false if default (CP 437)</summary>
-        public bool EncodeUTF8 = true;
+        public bool EncodeUTF8 = false;
         /// <summary>Force deflate algotithm even if it inflates the stored file. Off by default.</summary>
         public bool ForceDeflating = false;
-        #endregion
+#endregion
 
-        #region Private fields
+#region Private fields
         // List of files to store
         private List<ZipFileEntry> Files = new List<ZipFileEntry>();
         // Filename of storage file
@@ -188,20 +194,22 @@ namespace RaptorDB.Common
         // Stream object of storage file
         private Stream ZipFileStream;
         // General comment
-        private string Comment = "";
+        private string Comment = string.Empty;
         // Central dir image
         private byte[] CentralDirImage = null;
         // Existing files in zip
         private ushort ExistingFiles = 0;
         // File access for Open method
         private FileAccess Access;
+        // leave the stream open after the ZipStorer object is disposed
+        private bool leaveOpen;
         // Static CRC32 Table
         private static UInt32[] CrcTable = null;
         // Default filename encoder
         private static Encoding DefaultEncoding = Encoding.GetEncoding(437);
-        #endregion
+#endregion
 
-        #region Public methods
+#region Public methods
         // Static constructor. Just invoked once in order to create the CRC32 lookup table.
         static ZipStorer()
         {
@@ -226,12 +234,12 @@ namespace RaptorDB.Common
         /// <param name="_filename">Full path of Zip file to create</param>
         /// <param name="_comment">General comment for Zip file</param>
         /// <returns>A valid ZipStorer object</returns>
-        public static ZipStorer Create(string _filename, string _comment)
+        public static ZipStorer Create(string _filename, string _comment = null)
         {
             Stream stream = new FileStream(_filename, FileMode.Create, FileAccess.ReadWrite);
 
             ZipStorer zip = Create(stream, _comment);
-            zip.Comment = _comment;
+            zip.Comment = _comment ?? string.Empty;
             zip.FileName = _filename;
 
             return zip;
@@ -241,14 +249,15 @@ namespace RaptorDB.Common
         /// </summary>
         /// <param name="_stream"></param>
         /// <param name="_comment"></param>
+        /// <param name="_leaveOpen">true to leave the stream open after the ZipStorer object is disposed; otherwise, false (default).</param>
         /// <returns>A valid ZipStorer object</returns>
-        public static ZipStorer Create(Stream _stream, string _comment)
+        public static ZipStorer Create(Stream _stream, string _comment = null, bool _leaveOpen = false)
         {
             ZipStorer zip = new ZipStorer();
-            zip.Comment = _comment;
+            zip.Comment = _comment ?? string.Empty;
             zip.ZipFileStream = _stream;
             zip.Access = FileAccess.Write;
-
+            zip.leaveOpen = _leaveOpen;
             return zip;
         }
         /// <summary>
@@ -271,8 +280,9 @@ namespace RaptorDB.Common
         /// </summary>
         /// <param name="_stream">Already opened stream with zip contents</param>
         /// <param name="_access">File access mode for stream operations</param>
+        /// <param name="_leaveOpen">true to leave the stream open after the ZipStorer object is disposed; otherwise, false (default).</param>
         /// <returns>A valid ZipStorer object</returns>
-        public static ZipStorer Open(Stream _stream, FileAccess _access)
+        public static ZipStorer Open(Stream _stream, FileAccess _access, bool _leaveOpen = false)
         {
             if (!_stream.CanSeek && _access != FileAccess.Read)
                 throw new InvalidOperationException("Stream cannot seek");
@@ -281,9 +291,14 @@ namespace RaptorDB.Common
             //zip.FileName = _filename;
             zip.ZipFileStream = _stream;
             zip.Access = _access;
+            zip.leaveOpen = _leaveOpen;
 
             if (zip.ReadFileInfo())
                 return zip;
+
+            /* prevent files/streams to be opened unused*/
+            if(!_leaveOpen)
+                zip.Close();
 
             throw new System.IO.InvalidDataException();
         }
@@ -293,25 +308,28 @@ namespace RaptorDB.Common
         /// <param name="_method">Compression method</param>
         /// <param name="_pathname">Full path of file to add to Zip storage</param>
         /// <param name="_filenameInZip">Filename and path as desired in Zip directory</param>
-        /// <param name="_comment">Comment for stored file</param>        
-        public void AddFile(Compression _method, string _pathname, string _filenameInZip, string _comment)
+        /// <param name="_comment">Comment for stored file</param>
+        public ZipFileEntry AddFile(Compression _method, string _pathname, string _filenameInZip, string _comment = null)
         {
             if (Access == FileAccess.Read)
                 throw new InvalidOperationException("Writing is not alowed");
 
-            FileStream stream = new FileStream(_pathname, FileMode.Open, FileAccess.Read);
-            AddStream(_method, _filenameInZip, stream, File.GetLastWriteTime(_pathname), _comment);
-            stream.Close();
+            using (var stream = new FileStream(_pathname, FileMode.Open, FileAccess.Read))
+            {
+                return AddStream(_method, _filenameInZip, stream, File.GetLastWriteTime(_pathname), _comment);
+            }
         }
-
-        public void AddFile(Compression _method, string _pathname, string _filenameInZip, string _comment, DateTime lastwrite)
+        /// <summary>
+        /// Add full contents of a stream into the Zip storage
+        /// </summary>
+        /// <remarks>Same parameters and return value as AddStreamAsync()</remarks>
+        public ZipFileEntry AddStream(Compression _method, string _filenameInZip, Stream _source, DateTime _modTime, string _comment = null)
         {
-            if (Access == FileAccess.Read)
-                throw new InvalidOperationException("Writing is not alowed");
-
-            FileStream stream = new FileStream(_pathname, FileMode.Open, FileAccess.Read);
-            AddStream(_method, _filenameInZip, stream, lastwrite, _comment);
-            stream.Close();
+#if NOASYNC
+            return AddStreamAsync(_method, _filenameInZip, _source, _modTime, _comment);
+#else
+            return Task.Run(() => AddStreamAsync(_method, _filenameInZip, _source, _modTime, _comment)).Result;
+#endif
         }
         /// <summary>
         /// Add full contents of a stream into the Zip storage
@@ -321,43 +339,85 @@ namespace RaptorDB.Common
         /// <param name="_source">Stream object containing the data to store in Zip</param>
         /// <param name="_modTime">Modification time of the data to store</param>
         /// <param name="_comment">Comment for stored file</param>
-        public void AddStream(Compression _method, string _filenameInZip, Stream _source, DateTime _modTime, string _comment)
+#if NOASYNC
+        public ZipFileEntry
+#else
+        public async Task<ZipFileEntry>
+#endif
+         AddStreamAsync(Compression _method, string _filenameInZip, Stream _source, DateTime _modTime, string _comment = null)
         {
             if (Access == FileAccess.Read)
                 throw new InvalidOperationException("Writing is not alowed");
-
-            long offset;
-            if (this.Files.Count == 0)
-                offset = 0;
-            else
-            {
-                ZipFileEntry last = this.Files[this.Files.Count - 1];
-                offset = last.HeaderOffset + last.HeaderSize;
-            }
 
             // Prepare the fileinfo
             ZipFileEntry zfe = new ZipFileEntry();
             zfe.Method = _method;
             zfe.EncodeUTF8 = this.EncodeUTF8;
             zfe.FilenameInZip = NormalizedFilename(_filenameInZip);
-            zfe.Comment = (_comment == null ? "" : _comment);
+            zfe.Comment = _comment ?? string.Empty;
 
             // Even though we write the header now, it will have to be rewritten, since we don't know compressed size or crc.
             zfe.Crc32 = 0;  // to be updated later
             zfe.HeaderOffset = (uint)this.ZipFileStream.Position;  // offset within file of the start of this local record
+            zfe.CreationTime = _modTime;
             zfe.ModifyTime = _modTime;
+            zfe.AccessTime = _modTime;
 
             // Write local header
-            WriteLocalHeader(ref zfe);
+            WriteLocalHeader(zfe);
             zfe.FileOffset = (uint)this.ZipFileStream.Position;
 
             // Write file to zip (store)
-            Store(ref zfe, _source);
+            #if NOASYNC
+                Store(zfe, _source);
+            #else
+                await Store(zfe, _source);
+            #endif
+
             _source.Close();
 
-            this.UpdateCrcAndSizes(ref zfe);
+            this.UpdateCrcAndSizes(zfe);
 
             Files.Add(zfe);
+            return zfe;
+        }
+        /// <summary>
+        /// Add full contents of a directory into the Zip storage
+        /// </summary>
+        /// <param name="_method">Compression method</param>
+        /// <param name="_pathname">Full path of directory to add to Zip storage</param>
+        /// <param name="_pathnameInZip">Path name as desired in Zip directory</param>
+        /// <param name="_comment">Comment for stored directory</param>
+        public void AddDirectory(Compression _method, string _pathname, string _pathnameInZip, string _comment = null)
+        {
+            if (Access == FileAccess.Read)
+                throw new InvalidOperationException("Writing is not allowed");
+
+            string foldername;
+            int pos = _pathname.LastIndexOf(Path.DirectorySeparatorChar);
+            string separator = Path.DirectorySeparatorChar.ToString();
+            if (pos >= 0)
+                foldername = _pathname.Remove(0, pos + 1);
+            else
+                foldername = _pathname;
+
+            if (_pathnameInZip != null && _pathnameInZip != "")
+                foldername = _pathnameInZip + foldername;
+
+            if (!foldername.EndsWith(separator, StringComparison.CurrentCulture))
+                foldername = foldername + separator;
+
+            AddStream(_method, foldername, null/* TODO Change to default(_) if this is not a reference type */, File.GetLastWriteTime(_pathname), _comment);
+
+            // Process the list of files found in the directory.
+            string[] fileEntries = Directory.GetFiles(_pathname);
+            foreach (string fileName in fileEntries)
+                AddFile(_method, fileName, foldername + Path.GetFileName(fileName), "");
+
+            // Recurse into subdirectories of this directory.
+            string[] subdirectoryEntries = Directory.GetDirectories(_pathname);
+            foreach (string subdirectory in subdirectoryEntries)
+                AddDirectory(_method, subdirectory, foldername, "");
         }
         /// <summary>
         /// Updates central directory (if pertinent) and close the Zip storage
@@ -386,7 +446,7 @@ namespace RaptorDB.Common
                     this.WriteEndRecord(centralSize, centralOffset);
             }
 
-            if (this.ZipFileStream != null)
+            if (this.ZipFileStream != null && !this.leaveOpen)
             {
                 this.ZipFileStream.Flush();
                 this.ZipFileStream.Dispose();
@@ -394,7 +454,7 @@ namespace RaptorDB.Common
             }
         }
         /// <summary>
-        /// Read all the file records in the central directory 
+        /// Read all the file records in the central directory
         /// </summary>
         /// <returns>List of all entries in directory</returns>
         public List<ZipFileEntry> ReadCentralDir()
@@ -404,7 +464,7 @@ namespace RaptorDB.Common
 
             List<ZipFileEntry> result = new List<ZipFileEntry>();
 
-            for (int pointer = 0; pointer < this.CentralDirImage.Length;)
+            for (int pointer = 0; pointer < this.CentralDirImage.Length; )
             {
                 uint signature = BitConverter.ToUInt32(CentralDirImage, pointer);
                 if (signature != 0x02014b50)
@@ -420,7 +480,7 @@ namespace RaptorDB.Common
                 ushort extraSize = BitConverter.ToUInt16(CentralDirImage, pointer + 30);
                 ushort commentSize = BitConverter.ToUInt16(CentralDirImage, pointer + 32);
                 uint headerOffset = BitConverter.ToUInt32(CentralDirImage, pointer + 42);
-                uint headerSize = (uint)(46 + filenameSize + extraSize + commentSize);
+                uint headerSize = (uint)( 46 + filenameSize + extraSize + commentSize);
 
                 Encoding encoder = encodeUTF8 ? Encoding.UTF8 : DefaultEncoding;
 
@@ -433,9 +493,17 @@ namespace RaptorDB.Common
                 zfe.HeaderOffset = headerOffset;
                 zfe.HeaderSize = headerSize;
                 zfe.Crc32 = crc32;
-                zfe.ModifyTime = DosTimeToDateTime(modifyTime);
+                zfe.ModifyTime = DosTimeToDateTime(modifyTime) ?? DateTime.Now;
+                zfe.CreationTime = zfe.ModifyTime;
+                zfe.AccessTime = DateTime.Now;
+
                 if (commentSize > 0)
                     zfe.Comment = encoder.GetString(CentralDirImage, pointer + 46 + filenameSize + extraSize, commentSize);
+
+                if (extraSize > 0)
+                {
+                    this.ReadExtraInfo(CentralDirImage, pointer + 46 + filenameSize, zfe);
+                }
 
                 result.Add(zfe);
                 pointer += (46 + filenameSize + extraSize + commentSize);
@@ -453,23 +521,40 @@ namespace RaptorDB.Common
         public bool ExtractFile(ZipFileEntry _zfe, string _filename)
         {
             // Make sure the parent directory exist
-            string path = LongDirectory.GetDirectoryName(_filename);
+            string path = Path.GetDirectoryName(_filename);
 
-            if (!LongDirectory.Exists(path))
-                LongDirectory.CreateDirectory(path);
+            if (!Directory.Exists(path))
+                Directory.CreateDirectory(path);
             // Check it is directory. If so, do nothing
-            if (LongDirectory.Exists(_filename))
+            if (Directory.Exists(_filename))
                 return true;
 
-            Stream output = new FileStream(_filename, FileMode.Create, FileAccess.Write);
-            bool result = ExtractFile(_zfe, output);
-            if (result)
-                output.Close();
+            bool result;
+            using(var output = new FileStream(_filename, FileMode.Create, FileAccess.Write))
+            {
+                result = ExtractFile(_zfe, output);
+            }
 
-            LongFile.SetCreationTime(_filename, _zfe.ModifyTime);
-            LongFile.SetLastWriteTime(_filename, _zfe.ModifyTime);
+            if (result)
+            {
+                File.SetCreationTime(_filename, _zfe.CreationTime);
+                File.SetLastWriteTime(_filename, _zfe.ModifyTime);
+                File.SetLastAccessTime(_filename, _zfe.AccessTime);
+            }
 
             return result;
+        }
+        /// <summary>
+        /// Copy the contents of a stored file into an opened stream
+        /// </summary>
+        /// <remarks>Same parameters and return value as ExtractFileAsync</remarks>
+        public bool ExtractFile(ZipFileEntry _zfe, Stream _stream)
+        {
+#if NOASYNC
+            return ExtractFileAsync(_zfe, _stream);
+#else
+            return Task.Run(() => ExtractFileAsync(_zfe, _stream)).Result;
+#endif
         }
 
         /// <summary>
@@ -479,7 +564,12 @@ namespace RaptorDB.Common
         /// <param name="_stream">Stream to store the uncompressed data</param>
         /// <returns>True if success, false if not.</returns>
         /// <remarks>Unique compression methods are Store and Deflate</remarks>
-        public bool ExtractFile(ZipFileEntry _zfe, Stream _stream)
+#if NOASYNC
+        public bool
+#else
+        public async Task<bool>
+#endif
+        ExtractFileAsync(ZipFileEntry _zfe, Stream _stream)
         {
             if (!_stream.CanWrite)
                 throw new InvalidOperationException("Stream cannot be written");
@@ -487,7 +577,13 @@ namespace RaptorDB.Common
             // check signature
             byte[] signature = new byte[4];
             this.ZipFileStream.Seek(_zfe.HeaderOffset, SeekOrigin.Begin);
-            this.ZipFileStream.Read(signature, 0, 4);
+
+            #if NOASYNC
+                this.ZipFileStream.Read(signature, 0, 4);
+            #else
+                await this.ZipFileStream.ReadAsync(signature, 0, 4);
+            #endif
+
             if (BitConverter.ToUInt32(signature, 0) != 0x04034b50)
                 return false;
 
@@ -506,15 +602,50 @@ namespace RaptorDB.Common
             uint bytesPending = _zfe.FileSize;
             while (bytesPending > 0)
             {
-                int bytesRead = inStream.Read(buffer, 0, (int)Math.Min(bytesPending, buffer.Length));
-                _stream.Write(buffer, 0, bytesRead);
+                #if NOASYNC
+                    int bytesRead = inStream.Read(buffer, 0, (int)Math.Min(bytesPending, buffer.Length));
+                #else
+                    int bytesRead = await inStream.ReadAsync(buffer, 0, (int)Math.Min(bytesPending, buffer.Length));
+                #endif
+
+                #if NOASYNC
+                    _stream.Write(buffer, 0, bytesRead);
+                #else
+                    await _stream.WriteAsync(buffer, 0, bytesRead);
+                #endif
+
                 bytesPending -= (uint)bytesRead;
             }
             _stream.Flush();
 
             if (_zfe.Method == Compression.Deflate)
                 inStream.Dispose();
+
             return true;
+        }
+
+        /// <summary>
+        /// Copy the contents of a stored file into a byte array
+        /// </summary>
+        /// <param name="_zfe">Entry information of file to extract</param>
+        /// <param name="_file">Byte array with uncompressed data</param>
+        /// <returns>True if success, false if not.</returns>
+        /// <remarks>Unique compression methods are Store and Deflate</remarks>
+        public bool ExtractFile(ZipFileEntry _zfe, out byte[] _file)
+        {
+            using (MemoryStream ms = new MemoryStream())
+            {
+                if (ExtractFile(_zfe, ms))
+                {
+                    _file = ms.ToArray();
+                    return true;
+                }
+                else
+                {
+                    _file = null;
+                    return false;
+                }
+            }
         }
         /// <summary>
         /// Removes one of many files in storage. It creates a new Zip file.
@@ -530,15 +661,15 @@ namespace RaptorDB.Common
 
 
             //Get full list of entries
-            List<ZipFileEntry> fullList = _zip.ReadCentralDir();
+            var fullList = _zip.ReadCentralDir();
 
             //In order to delete we need to create a copy of the zip file excluding the selected items
-            string tempZipName = Path.GetTempFileName();
-            string tempEntryName = Path.GetTempFileName();
+            var tempZipName = Path.GetTempFileName();
+            var tempEntryName = Path.GetTempFileName();
 
             try
             {
-                ZipStorer tempZip = ZipStorer.Create(tempZipName, string.Empty);
+                var tempZip = ZipStorer.Create(tempZipName, string.Empty);
 
                 foreach (ZipFileEntry zfe in fullList)
                 {
@@ -571,9 +702,9 @@ namespace RaptorDB.Common
             }
             return true;
         }
-        #endregion
+#endregion
 
-        #region Private methods
+#region Private methods
         // Calculate the file offset by reading the corresponding local header
         private uint GetFileOffset(uint _headerOffset)
         {
@@ -603,21 +734,23 @@ namespace RaptorDB.Common
             filename (variable size)
             extra field (variable size)
         */
-        private void WriteLocalHeader(ref ZipFileEntry _zfe)
+        private void WriteLocalHeader(ZipFileEntry _zfe)
         {
             long pos = this.ZipFileStream.Position;
             Encoding encoder = _zfe.EncodeUTF8 ? Encoding.UTF8 : DefaultEncoding;
             byte[] encodedFilename = encoder.GetBytes(_zfe.FilenameInZip);
+            byte[] extraInfo = this.CreateExtraInfo(_zfe);
 
-            this.ZipFileStream.Write(new byte[] { 80, 75, 3, 4, 20, 0 }, 0, 6); // No extra header
-            this.ZipFileStream.Write(BitConverter.GetBytes((ushort)(_zfe.EncodeUTF8 ? 0x0800 : 0)), 0, 2); // filename and comment encoding 
+            this.ZipFileStream.Write(new byte[] { 80, 75, 3, 4, 20, 0}, 0, 6); // No extra header
+            this.ZipFileStream.Write(BitConverter.GetBytes((ushort)(_zfe.EncodeUTF8 ? 0x0800 : 0)), 0, 2); // filename and comment encoding
             this.ZipFileStream.Write(BitConverter.GetBytes((ushort)_zfe.Method), 0, 2);  // zipping method
             this.ZipFileStream.Write(BitConverter.GetBytes(DateTimeToDosTime(_zfe.ModifyTime)), 0, 4); // zipping date and time
             this.ZipFileStream.Write(new byte[] { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, 0, 12); // unused CRC, un/compressed size, updated later
             this.ZipFileStream.Write(BitConverter.GetBytes((ushort)encodedFilename.Length), 0, 2); // filename length
-            this.ZipFileStream.Write(BitConverter.GetBytes((ushort)0), 0, 2); // extra length
+            this.ZipFileStream.Write(BitConverter.GetBytes((ushort)extraInfo.Length), 0, 2); // extra length
 
             this.ZipFileStream.Write(encodedFilename, 0, encodedFilename.Length);
+            this.ZipFileStream.Write(extraInfo, 0, extraInfo.Length);
             _zfe.HeaderSize = (uint)(this.ZipFileStream.Position - pos);
         }
         /* Central directory's File header:
@@ -648,16 +781,17 @@ namespace RaptorDB.Common
             Encoding encoder = _zfe.EncodeUTF8 ? Encoding.UTF8 : DefaultEncoding;
             byte[] encodedFilename = encoder.GetBytes(_zfe.FilenameInZip);
             byte[] encodedComment = encoder.GetBytes(_zfe.Comment);
+            byte[] extraInfo = this.CreateExtraInfo(_zfe);
 
             this.ZipFileStream.Write(new byte[] { 80, 75, 1, 2, 23, 0xB, 20, 0 }, 0, 8);
-            this.ZipFileStream.Write(BitConverter.GetBytes((ushort)(_zfe.EncodeUTF8 ? 0x0800 : 0)), 0, 2); // filename and comment encoding 
+            this.ZipFileStream.Write(BitConverter.GetBytes((ushort)(_zfe.EncodeUTF8 ? 0x0800 : 0)), 0, 2); // filename and comment encoding
             this.ZipFileStream.Write(BitConverter.GetBytes((ushort)_zfe.Method), 0, 2);  // zipping method
             this.ZipFileStream.Write(BitConverter.GetBytes(DateTimeToDosTime(_zfe.ModifyTime)), 0, 4);  // zipping date and time
             this.ZipFileStream.Write(BitConverter.GetBytes(_zfe.Crc32), 0, 4); // file CRC
             this.ZipFileStream.Write(BitConverter.GetBytes(_zfe.CompressedSize), 0, 4); // compressed file size
             this.ZipFileStream.Write(BitConverter.GetBytes(_zfe.FileSize), 0, 4); // uncompressed file size
             this.ZipFileStream.Write(BitConverter.GetBytes((ushort)encodedFilename.Length), 0, 2); // Filename in zip
-            this.ZipFileStream.Write(BitConverter.GetBytes((ushort)0), 0, 2); // extra length
+            this.ZipFileStream.Write(BitConverter.GetBytes((ushort)extraInfo.Length), 0, 2); // extra length
             this.ZipFileStream.Write(BitConverter.GetBytes((ushort)encodedComment.Length), 0, 2);
 
             this.ZipFileStream.Write(BitConverter.GetBytes((ushort)0), 0, 2); // disk=0
@@ -667,6 +801,7 @@ namespace RaptorDB.Common
             this.ZipFileStream.Write(BitConverter.GetBytes(_zfe.HeaderOffset), 0, 4);  // Offset of header
 
             this.ZipFileStream.Write(encodedFilename, 0, encodedFilename.Length);
+            this.ZipFileStream.Write(extraInfo, 0, extraInfo.Length);
             this.ZipFileStream.Write(encodedComment, 0, encodedComment.Length);
         }
         /* End of central dir record:
@@ -691,15 +826,20 @@ namespace RaptorDB.Common
             byte[] encodedComment = encoder.GetBytes(this.Comment);
 
             this.ZipFileStream.Write(new byte[] { 80, 75, 5, 6, 0, 0, 0, 0 }, 0, 8);
-            this.ZipFileStream.Write(BitConverter.GetBytes((ushort)Files.Count + ExistingFiles), 0, 2);
-            this.ZipFileStream.Write(BitConverter.GetBytes((ushort)Files.Count + ExistingFiles), 0, 2);
+            this.ZipFileStream.Write(BitConverter.GetBytes((ushort)Files.Count+ExistingFiles), 0, 2);
+            this.ZipFileStream.Write(BitConverter.GetBytes((ushort)Files.Count+ExistingFiles), 0, 2);
             this.ZipFileStream.Write(BitConverter.GetBytes(_size), 0, 4);
             this.ZipFileStream.Write(BitConverter.GetBytes(_offset), 0, 4);
             this.ZipFileStream.Write(BitConverter.GetBytes((ushort)encodedComment.Length), 0, 2);
             this.ZipFileStream.Write(encodedComment, 0, encodedComment.Length);
         }
         // Copies all source file into storage file
-        private void Store(ref ZipFileEntry _zfe, Stream _source)
+#if NOASYNC
+        private Compression
+#else
+        private async Task<Compression>
+#endif
+        Store(ZipFileEntry _zfe, Stream _source)
         {
             byte[] buffer = new byte[16384];
             int bytesRead;
@@ -707,7 +847,7 @@ namespace RaptorDB.Common
             Stream outStream;
 
             long posStart = this.ZipFileStream.Position;
-            long sourceStart = _source.Position;
+            long sourceStart = _source.CanSeek ? _source.Position : 0;
 
             if (_zfe.Method == Compression.Store)
                 outStream = this.ZipFileStream;
@@ -718,18 +858,27 @@ namespace RaptorDB.Common
 
             do
             {
-                bytesRead = _source.Read(buffer, 0, buffer.Length);
+                #if NOASYNC
+                    bytesRead = _source.Read(buffer, 0, buffer.Length);
+                #else
+                    bytesRead = await _source.ReadAsync(buffer, 0, buffer.Length);
+                #endif
+
                 totalRead += (uint)bytesRead;
                 if (bytesRead > 0)
                 {
-                    outStream.Write(buffer, 0, bytesRead);
+                    #if NOASYNC
+                        outStream.Write(buffer, 0, bytesRead);
+                    #else
+                        await outStream.WriteAsync(buffer, 0, bytesRead);
+                    #endif
 
                     for (uint i = 0; i < bytesRead; i++)
                     {
                         _zfe.Crc32 = ZipStorer.CrcTable[(_zfe.Crc32 ^ buffer[i]) & 0xFF] ^ (_zfe.Crc32 >> 8);
                     }
                 }
-            } while (bytesRead == buffer.Length);
+            } while (bytesRead > 0);
             outStream.Flush();
 
             if (_zfe.Method == Compression.Deflate)
@@ -747,49 +896,97 @@ namespace RaptorDB.Common
                 this.ZipFileStream.Position = posStart;
                 this.ZipFileStream.SetLength(posStart);
                 _source.Position = sourceStart;
-                this.Store(ref _zfe, _source);
+
+                #if NOASYNC
+                    return this.Store(_zfe, _source);
+                #else
+                    return await this.Store(_zfe, _source);
+                #endif
             }
+
+            return _zfe.Method;
         }
         /* DOS Date and time:
-            MS-DOS date. The date is a packed value with the following format. Bits Description 
-                0-4 Day of the month (1�31) 
-                5-8 Month (1 = January, 2 = February, and so on) 
-                9-15 Year offset from 1980 (add 1980 to get actual year) 
-            MS-DOS time. The time is a packed value with the following format. Bits Description 
-                0-4 Second divided by 2 
-                5-10 Minute (0�59) 
-                11-15 Hour (0�23 on a 24-hour clock) 
+            MS-DOS date. The date is a packed value with the following format. Bits Description
+                0-4 Day of the month (131)
+                5-8 Month (1 = January, 2 = February, and so on)
+                9-15 Year offset from 1980 (add 1980 to get actual year)
+            MS-DOS time. The time is a packed value with the following format. Bits Description
+                0-4 Second divided by 2
+                5-10 Minute (059)
+                11-15 Hour (023 on a 24-hour clock)
         */
         private uint DateTimeToDosTime(DateTime _dt)
         {
             return (uint)(
                 (_dt.Second / 2) | (_dt.Minute << 5) | (_dt.Hour << 11) |
-                (_dt.Day << 16) | (_dt.Month << 21) | ((_dt.Year - 1980) << 25));
+                (_dt.Day<<16) | (_dt.Month << 21) | ((_dt.Year - 1980) << 25));
         }
-        private DateTime DosTimeToDateTime(uint _dt)
+        private byte[] CreateExtraInfo(ZipFileEntry _zfe)
         {
-            return new DateTime(
-                (int)(_dt >> 25) + 1980,
-                (int)(_dt >> 21) & 15,
-                (int)(_dt >> 16) & 31,
-                (int)(_dt >> 11) & 31,
-                (int)(_dt >> 5) & 63,
-                (int)(_dt & 31) * 2);
+            byte[] buffer = new byte[36];
+            BitConverter.GetBytes((ushort)0x000A).CopyTo(buffer, 0); // NTFS FileTime
+            BitConverter.GetBytes((ushort)32).CopyTo(buffer, 2); // Length
+            BitConverter.GetBytes((ushort)1).CopyTo(buffer, 8); // Tag 1
+            BitConverter.GetBytes((ushort)24).CopyTo(buffer, 10); // Size 1
+            BitConverter.GetBytes(_zfe.ModifyTime.ToFileTime()).CopyTo(buffer, 12); // MTime
+            BitConverter.GetBytes(_zfe.AccessTime.ToFileTime()).CopyTo(buffer, 20); // ATime
+            BitConverter.GetBytes(_zfe.CreationTime.ToFileTime()).CopyTo(buffer, 28); // CTime
+
+            return buffer;
+        }
+        private void ReadExtraInfo(byte[] buffer, int offset, ZipFileEntry _zfe)
+        {
+            if (buffer.Length < 4)
+                return;
+
+            int pos = offset;
+
+            while (pos < buffer.Length - 4)
+            {
+                uint extraId = BitConverter.ToUInt16(buffer, pos);
+                uint length = BitConverter.ToUInt16(buffer, pos+2);
+
+                if (extraId == 0x000A) // NTFS FileTime
+                {
+                    uint tag = BitConverter.ToUInt16(buffer, pos + 8);
+                    uint size = BitConverter.ToUInt16(buffer, pos + 10);
+
+                    if (tag == 1 && size == 24)
+                    {
+                        _zfe.ModifyTime = DateTime.FromFileTime(BitConverter.ToInt64(buffer, pos+12));
+                        _zfe.AccessTime = DateTime.FromFileTime(BitConverter.ToInt64(buffer, pos+20));
+                        _zfe.CreationTime = DateTime.FromFileTime(BitConverter.ToInt64(buffer, pos+28));
+                    }
+                }
+
+                pos += (int)length + 4;
+            }
+        }
+        private DateTime? DosTimeToDateTime(uint _dt)
+        {
+            int year = (int)(_dt >> 25) + 1980;
+            int month = (int)(_dt >> 21) & 15;
+            int day = (int)(_dt >> 16) & 31;
+            int hours = (int)(_dt >> 11) & 31;
+            int minutes = (int)(_dt >> 5) & 63;
+            int seconds = (int)(_dt & 31) * 2;
+
+            if (month==0 || day == 0 || year >= 2107)
+                return DateTime.Now;
+
+            return new DateTime(year, month, day, hours, minutes, seconds);
         }
 
         /* CRC32 algorithm
-          The 'magic number' for the CRC is 0xdebb20e3.  
-          The proper CRC pre and post conditioning
-          is used, meaning that the CRC register is
-          pre-conditioned with all ones (a starting value
-          of 0xffffffff) and the value is post-conditioned by
+          The 'magic number' for the CRC is 0xdebb20e3.
+          The proper CRC pre and post conditioning is used, meaning that the CRC register is
+          pre-conditioned with all ones (a starting value of 0xffffffff) and the value is post-conditioned by
           taking the one's complement of the CRC residual.
-          If bit 3 of the general purpose flag is set, this
-          field is set to zero in the local header and the correct
-          value is put in the data descriptor and in the central
-          directory.
+          If bit 3 of the general purpose flag is set, this field is set to zero in the local header and the correct
+          value is put in the data descriptor and in the central directory.
         */
-        private void UpdateCrcAndSizes(ref ZipFileEntry _zfe)
+        private void UpdateCrcAndSizes(ZipFileEntry _zfe)
         {
             long lastPos = this.ZipFileStream.Position;  // remember position
 
@@ -857,9 +1054,9 @@ namespace RaptorDB.Common
 
             return false;
         }
-        #endregion
+#endregion
 
-        #region IDisposable Members
+#region IDisposable Members
         /// <summary>
         /// Closes the Zip file stream
         /// </summary>
@@ -867,6 +1064,6 @@ namespace RaptorDB.Common
         {
             this.Close();
         }
-        #endregion
+#endregion
     }
 }

@@ -121,7 +121,7 @@ namespace TorpedoSync
         public static void WriteResponse(HttpListenerContext ctx, int code, byte[] data, bool compress)
         {
             ctx.Response.StatusCode = code;
-            ctx.Response.AppendHeader("Access-Control-Allow-Origin", "*");
+            ctx.Response.AddHeader("Access-Control-Allow-Origin", "*");
             //ctx.Response.AppendHeader("Access-Control-Allow-Methods", "GET, PUT");
             //ctx.Response.AppendHeader("Access-Control-Allow-Credentials", "true");
             byte[] b = data;

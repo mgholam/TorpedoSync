@@ -18,7 +18,7 @@ namespace TorpedoSync
             Action<Connection> removeque,
             Func<Connection, ConnectionInfo> getconninfo,
             AuthenticationSchemes authenticationType,
-            string apiPrefix) : base(HttpPort, localonly, embeddedresources, authenticationType, "api", "main.html")
+            string apiPrefix) : base(HttpPort, localonly, embeddedresources, authenticationType, "api", "index.html")
         {
             StartQue = startque;
             RemoveQue = removeque;
@@ -249,11 +249,13 @@ namespace TorpedoSync
                     Global.PauseAll = true;
                 else
                     Global.PauseAll = false;
+                OutPutContentType(ctx, ".json");
                 WriteResponse(ctx, 200, "true");
             });
 
             handler.Add("getlogs", ctx =>
             {
+                OutPutContentType(ctx, ".json");
                 WriteResponse(ctx, 200, JSON.ToJSON(LogManager.GetLastLogs(), jp));
             });
 
@@ -268,6 +270,7 @@ namespace TorpedoSync
                     Global.PauseAll
                 };
 
+                OutPutContentType(ctx, ".json");
                 WriteResponse(ctx, 200, JSON.ToJSON(o, jp));
             });
         }

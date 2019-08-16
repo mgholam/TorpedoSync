@@ -1,5 +1,9 @@
-1.5.0*
+1.6.0
+- rewritten the web ui with svelte
+
+1.5.0
 - moved to using parcel packager instead of webpack
+- updated to new zipstorer.cs
 
 1.4.0
 - upgrade to fastJSON v2.1.36

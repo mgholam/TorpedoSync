@@ -15,9 +15,9 @@
     <PlatformTarget>AnyCPU</PlatformTarget>
     <DebugSymbols>true</DebugSymbols>
     <DebugType>full</DebugType>
-    <Optimize>false</Optimize>
+    <Optimize>true</Optimize>
     <OutputPath>..\output\</OutputPath>
-    <DefineConstants>TRACE;DEBUG;minilzo</DefineConstants>
+    <DefineConstants>TRACE;DEBUG;minilzo; NOASYNC</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
@@ -92,17 +92,13 @@
     <Compile Include="TorpedoWeb.cs" />
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="WEB\main.html" />
-  </ItemGroup>
-  <ItemGroup>
-    <EmbeddedResource Include="WEB\main.css" />
-  </ItemGroup>
-  <ItemGroup>
     <None Include="app.manifest" />
-    <EmbeddedResource Include="WEB\glyphicons-halflings-regular.woff" />
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="WEB\main.js" />
+    <EmbeddedResource Include="WEB\bundle.css" />
+    <EmbeddedResource Include="WEB\bundle.js" />
+    <EmbeddedResource Include="WEB\global.css" />
+    <EmbeddedResource Include="WEB\index.html" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
