@@ -1,5 +1,7 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
 
@@ -18,6 +20,14 @@ namespace RaptorDB.Common
         // safesortedlist only
         //V GetValue(int index);
         //T GetKey(int index);
+    }
+
+    public class ReferenceEqualityComparer : IEqualityComparer, IEqualityComparer<object>
+    {
+        public static ReferenceEqualityComparer Default { get; } = new ReferenceEqualityComparer();
+
+        public new bool Equals(object x, object y) => x.Equals(y);
+        public int GetHashCode(object obj) => RuntimeHelpers.GetHashCode(obj);
     }
 
     public class SafeDictionary<TKey, TValue> : IKV<TKey, TValue>
@@ -166,6 +176,20 @@ namespace RaptorDB.Common
             }
         }
 
+        public V this[T key]
+        {
+            get
+            {
+                lock (_padlock)
+                    return _list[key];
+            }
+            set
+            {
+                lock (_padlock)
+                    _list[key] = value;
+            }
+        }
+
         public IEnumerator<KeyValuePair<T, V>> GetEnumerator()
         {
             return ((ICollection<KeyValuePair<T, V>>)_list).GetEnumerator();
@@ -204,7 +228,6 @@ namespace RaptorDB.Common
         static FastDateTime()
         {
             LocalUtcOffset = TimeZone.CurrentTimeZone.GetUtcOffset(DateTime.Now);
-
         }
     }
     //------------------------------------------------------------------------------------------------------------------
@@ -322,12 +345,12 @@ namespace RaptorDB.Common
 
         public static byte[] GetBytes(string s)
         {
-            return Encoding.UTF8.GetBytes(s);
+            return Encoding.UTF8.GetBytes(s); // TODO : change to unicode ??
         }
 
         public static string GetString(byte[] buffer, int index, short length)
         {
-            return Encoding.UTF8.GetString(buffer, index, length);
+            return Encoding.UTF8.GetString(buffer, index, length); // TODO : change to unicode ??
         }
     }
 }

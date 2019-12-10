@@ -53,8 +53,7 @@ namespace fastBinaryJSON
         public List<object> data = new List<object>();
     }
 
-    //public delegate string Serialize(object data);
-    //public delegate object Deserialize(string data);
+
 
     public sealed class BJSONParameters
     {
@@ -108,6 +107,10 @@ namespace fastBinaryJSON
         /// Use typed arrays t[] into object = t[] not object[] (default = true)
         /// </summary>
         public bool UseTypedArrays = true;
+        /// <summary>
+        /// Backward compatible Typed array type name as UTF8 (default = false -> fast v1.5 unicode)
+        /// </summary>
+        public bool v1_4TypedArray = false;
 
         public void FixValues()
         {
@@ -127,14 +130,16 @@ namespace fastBinaryJSON
                 EnableAnonymousTypes = EnableAnonymousTypes,
                 UsingGlobalTypes = UsingGlobalTypes,
                 IgnoreAttributes = new List<Type>(IgnoreAttributes),
-                //IgnoreCaseOnDeserialize = IgnoreCaseOnDeserialize,
                 UseUnicodeStrings = UseUnicodeStrings,
                 SerializeNulls = SerializeNulls,
                 ParametricConstructorOverride = ParametricConstructorOverride,
                 SerializerMaxDepth = SerializerMaxDepth,
                 UseTypedArrays = UseTypedArrays,
                 UseExtensions = UseExtensions,
-                UseUTCDateTime = UseUTCDateTime                
+                UseUTCDateTime = UseUTCDateTime,
+                v1_4TypedArray = v1_4TypedArray//,
+                //OptimizeSize = OptimizeSize
+
             };
         }
     }
@@ -152,7 +157,7 @@ namespace fastBinaryJSON
         /// <returns></returns>
         public static object Parse(byte[] json)
         {
-            return new BJsonParser(json, Parameters.UseUTCDateTime).Decode();
+            return new BJsonParser(json, Parameters.UseUTCDateTime, Parameters.v1_4TypedArray).Decode();
         }
 #if NET4
         /// <summary>
@@ -171,7 +176,7 @@ namespace fastBinaryJSON
         /// <param name="type"></param>
         /// <param name="serializer"></param>
         /// <param name="deserializer"></param>
-        public static void RegisterCustomType(Type type, Serialize serializer, Deserialize deserializer)
+        public static void RegisterCustomType(Type type, Reflection.Serialize serializer, Reflection.Deserialize deserializer)
         {
             Reflection.Instance.RegisterCustomType(type, serializer, deserializer);
         }
@@ -318,7 +323,7 @@ namespace fastBinaryJSON
             if (t == typeof(Dictionary<,>) || t == typeof(List<>))
                 _globalTypes = false;
 
-            var o = new BJsonParser(json, _params.UseUTCDateTime).Decode();
+            var o = new BJsonParser(json, _params.UseUTCDateTime, _params.v1_4TypedArray).Decode();
             if (type?.IsEnum == true) return CreateEnum(type, o);
 #if !SILVERLIGHT
             if (type != null && type == typeof(DataSet))
@@ -381,7 +386,7 @@ namespace fastBinaryJSON
         public object FillObject(object input, byte[] json)
         {
             _params.FixValues();
-            Dictionary<string, object> ht = new BJsonParser(json, _params.UseUTCDateTime).Decode() as Dictionary<string, object>;
+            Dictionary<string, object> ht = new BJsonParser(json, _params.UseUTCDateTime, _params.v1_4TypedArray).Decode() as Dictionary<string, object>;
             if (ht == null) return null;
             return ParseDictionary(ht, null, input.GetType(), input);
         }
@@ -521,7 +526,7 @@ namespace fastBinaryJSON
                     if (globaltypes != null && globaltypes.TryGetValue((string)tn, out tname))
                         tn = tname;
                 }
-                type = Reflection.Instance.GetTypeFromCache((string)tn);
+                type = Reflection.Instance.GetTypeFromCache((string)tn, true);
             }
 
             if (type == null)
@@ -624,7 +629,7 @@ namespace fastBinaryJSON
         {
             object oset;
             var ta = (typedarray)v;
-            var t = Reflection.Instance.GetTypeFromCache(ta.typename);
+            var t = Reflection.Instance.GetTypeFromCache(ta.typename, true);
             IList a = Array.CreateInstance(t, ta.count);
             int i = 0;
             foreach (var dd in ta.data)

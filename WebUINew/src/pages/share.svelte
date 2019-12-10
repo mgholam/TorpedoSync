@@ -5,7 +5,7 @@
   import ViewShare from "./viewshare.svelte";
   import entity from "../entities.js";
   import Fa from "svelte-fa";
-import icons from "../icons.js";
+  import icons from "../icons.js";
 
   export let active = false;
 

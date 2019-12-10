@@ -1,3 +1,11 @@
+1.7.0
+- WEBUI: refactored tabs out of app into own component
+- upgrade to fastJSON v2.3.1
+- upgrade to fastBinaryJSON v1.6.1
+- bug fix zipstorer.cs default not utf8 encoding
+- added deleting empty folders
+- updated npm packages
+
 1.6.0
 - rewritten the web ui with svelte
 

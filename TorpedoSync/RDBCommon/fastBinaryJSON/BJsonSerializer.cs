@@ -114,6 +114,9 @@ namespace fastBinaryJSON
             else if (obj is decimal)
                 WriteDecimal((decimal)obj);
 
+            else if (obj is sbyte)
+                WriteSByte((sbyte)obj);
+
             else if (obj is byte)
                 WriteByte((byte)obj);
 
@@ -149,7 +152,7 @@ namespace fastBinaryJSON
                 WriteDataset((DataSet)obj);
 
             else if (obj is DataTable)
-                this.WriteDataTable((DataTable)obj);
+                WriteDataTable((DataTable)obj);
 #endif
             else if (obj is byte[])
                 WriteBytes((byte[])obj);
@@ -176,6 +179,13 @@ namespace fastBinaryJSON
                 WriteObject(obj);
         }
 
+        private void WriteSByte(sbyte p)
+        {
+            _output.WriteByte(TOKENS.BYTE);
+            byte i = (byte)p;
+            _output.WriteByte(i);
+        }
+
         private void WriteTimeSpan(TimeSpan obj)
         {
             _output.WriteByte(TOKENS.TIMESPAN);
@@ -193,8 +203,12 @@ namespace fastBinaryJSON
                 //if (t.GetElementType().IsClass)
                 {
                     token = false;
+                    byte[] b;
                     // array type name
-                    byte[] b = Reflection.UTF8GetBytes(Reflection.Instance.GetTypeAssemblyName(t.GetElementType())); // utf8 : backward compatible
+                    if (_params.v1_4TypedArray)
+                        b = Reflection.UTF8GetBytes(Reflection.Instance.GetTypeAssemblyName(t.GetElementType()));
+                    else
+                        b = Reflection.UnicodeGetBytes(Reflection.Instance.GetTypeAssemblyName(t.GetElementType()));
                     if (b.Length < 256)
                     {
                         _output.WriteByte(TOKENS.ARRAY_TYPED);
@@ -346,7 +360,7 @@ namespace fastBinaryJSON
 
         private void WriteCustom(object obj)
         {
-            Serialize s;
+            Reflection.Serialize s;
             Reflection.Instance._customSerializer.TryGetValue(obj.GetType(), out s);
             WriteString(s(obj));
         }
@@ -561,7 +575,7 @@ namespace fastBinaryJSON
                 append = true;
             }
 
-            Getters[] g = Reflection.Instance.GetGetters(t, _params.ShowReadOnlyProperties, _params.IgnoreAttributes);
+            Getters[] g = Reflection.Instance.GetGetters(t, /*_params.ShowReadOnlyProperties,*/ _params.IgnoreAttributes);
             int c = g.Length;
             for (int ii = 0; ii < c; ii++)
             {

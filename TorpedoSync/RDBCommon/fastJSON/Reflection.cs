@@ -6,6 +6,10 @@ using System.Collections;
 using System.Text;
 using System.Runtime.Serialization;
 using RaptorDB.Common;
+#if NET4
+using System.Linq;
+using RaptorDB.Common;
+#endif
 #if !SILVERLIGHT
 using System.Data;
 #endif
@@ -13,15 +17,16 @@ using System.Collections.Specialized;
 
 namespace fastJSON
 {
-    internal struct Getters
+    public struct Getters
     {
         public string Name;
         public string lcName;
         public string memberName;
         public Reflection.GenericGetter Getter;
+        public bool ReadOnly;
     }
 
-    internal enum myPropInfoType
+    public enum myPropInfoType
     {
         Int,
         Long,
@@ -46,7 +51,7 @@ namespace fastJSON
         Unknown,
     }
 
-    internal class myPropInfo
+    public class myPropInfo
     {
         public Type pt;
         public Type bt;
@@ -68,7 +73,7 @@ namespace fastJSON
         public bool IsInterface;
     }
 
-    internal sealed class Reflection
+    public sealed class Reflection
     {
         // Singleton pattern 4 from : http://csharpindepth.com/articles/general/singleton.aspx
         private static readonly Reflection instance = new Reflection();
@@ -79,12 +84,16 @@ namespace fastJSON
         }
         private Reflection()
         {
-            //_isWindows = Environment.OSVersion.VersionString.ToLower().Contains("windows");
         }
         public static Reflection Instance { get { return instance; } }
 
-        internal delegate object GenericSetter(object target, object value);
-        internal delegate object GenericGetter(object obj);
+        public static bool RDBMode = false;
+
+        public delegate string Serialize(object data);
+        public delegate object Deserialize(string data);
+
+        public delegate object GenericSetter(object target, object value);
+        public delegate object GenericGetter(object obj);
         private delegate object CreateObject();
         private delegate object CreateList(int capacity);
 
@@ -97,7 +106,15 @@ namespace fastJSON
         private SafeDictionary<Type, Type[]> _genericTypes = new SafeDictionary<Type, Type[]>(10);
         private SafeDictionary<Type, Type> _genericTypeDef = new SafeDictionary<Type, Type>(10);
         private static SafeDictionary<short, OpCode> _opCodes;
-        //private static bool _isWindows = false;
+        private static List<string> _blacklistTypes = new List<string>()
+        {
+            "system.configuration.install.assemblyinstaller",
+            "system.activities.presentation.workflowdesigner",
+            "system.windows.resourcedictionary",
+            "system.windows.data.objectdataprovider",
+            "system.windows.forms.bindingsource",
+            "microsoft.exchange.management.systemmanager.winforms.exchangesettingsprovider"
+        };
 
         private static bool TryGetOpCode(short code, out OpCode opCode)
         {
@@ -139,6 +156,11 @@ namespace fastJSON
                 System.Runtime.InteropServices.Marshal.Copy(new IntPtr(ptr), b, 0, len);
             }
             return b;
+        }
+
+        public static string UnicodeGetString(byte[] b)
+        {
+            return UnicodeGetString(b, 0, b.Length);
         }
 
         public unsafe static string UnicodeGetString(byte[] bytes, int offset, int buflen)
@@ -248,7 +270,7 @@ namespace fastJSON
                         sd.Add(d.memberName, d);
                     else
 #endif
-                        sd.Add(p.Name.ToLowerInvariant(), d);
+                    sd.Add(p.Name.ToLowerInvariant(), d);
                 }
                 FieldInfo[] fi = type.GetFields(bf);
                 foreach (FieldInfo f in fi)
@@ -256,7 +278,8 @@ namespace fastJSON
                     myPropInfo d = CreateMyProp(f.FieldType, f.Name);
                     if (f.IsLiteral == false)
                     {
-                        d.setter = Reflection.CreateSetField(type, f);
+                        if (f.IsInitOnly == false)
+                            d.setter = Reflection.CreateSetField(type, f);
                         if (d.setter != null)
                             d.CanWrite = true;
                         d.getter = Reflection.CreateGetField(type, f);
@@ -275,7 +298,7 @@ namespace fastJSON
                             sd.Add(d.memberName, d);
                         else
 #endif
-                            sd.Add(f.Name.ToLowerInvariant(), d);
+                        sd.Add(f.Name.ToLowerInvariant(), d);
                     }
                 }
 
@@ -352,7 +375,7 @@ namespace fastJSON
 
         #region [   PROPERTY GET SET   ]
 
-        internal string GetTypeAssemblyName(Type t)
+        public string GetTypeAssemblyName(Type t)
         {
             string val = "";
             if (_tyname.TryGetValue(t, out val))
@@ -365,20 +388,34 @@ namespace fastJSON
             }
         }
 
-        internal Type GetTypeFromCache(string typename)
+        internal Type GetTypeFromCache(string typename, bool blacklistChecking)
         {
             Type val = null;
             if (_typecache.TryGetValue(typename, out val))
                 return val;
             else
             {
+                // check for BLACK LIST types -> more secure when using $type
+                if (blacklistChecking)
+                {
+                    var tn = typename.Trim().ToLowerInvariant();
+                    foreach (var s in _blacklistTypes)
+                        if (tn.StartsWith(s, StringComparison.Ordinal))
+                            throw new Exception("Black list type encountered, possible attack vector when using $type : " + typename);
+                }
                 Type t = Type.GetType(typename);
-                //if (t == null) // RaptorDB : loading runtime assemblies
-                //{
-                //    t = Type.GetType(typename, (name) => {
-                //        return AppDomain.CurrentDomain.GetAssemblies().Where(z => z.FullName == name.FullName).FirstOrDefault();
-                //    }, null, true);
-                //}
+#if NET4
+                if (RDBMode)
+                {
+                    if (t == null) // RaptorDB : loading runtime assemblies
+                    {
+                        t = Type.GetType(typename, (name) =>
+                        {
+                            return AppDomain.CurrentDomain.GetAssemblies().Where(z => z.FullName == name.FullName).FirstOrDefault();
+                        }, null, true);
+                    }
+                }
+#endif
                 _typecache.Add(typename, t);
                 return t;
             }
@@ -394,18 +431,30 @@ namespace fastJSON
                 CreateList c = null;
                 if (_conlistcache.TryGetValue(objtype, out c))
                 {
-                    return c(count);
+                    if (c != null) // kludge : non capacity lists
+                        return c(count);
+                    else
+                        return FastCreateInstance(objtype);
                 }
                 else
                 {
-                    DynamicMethod dynMethod = new DynamicMethod("_fcil", objtype, new Type[] { typeof(int) }, true);
-                    ILGenerator ilGen = dynMethod.GetILGenerator();
-                    ilGen.Emit(OpCodes.Ldarg_0);
-                    ilGen.Emit(OpCodes.Newobj, objtype.GetConstructor(new Type[] { typeof(int) }));
-                    ilGen.Emit(OpCodes.Ret);
-                    c = (CreateList)dynMethod.CreateDelegate(typeof(CreateList));
-                    _conlistcache.Add(objtype, c);
-                    return c(count);
+                    var cinfo = objtype.GetConstructor(new Type[] { typeof(int) });
+                    if (cinfo != null)
+                    {
+                        DynamicMethod dynMethod = new DynamicMethod("_fcil", objtype, new Type[] { typeof(int) }, true);
+                        ILGenerator ilGen = dynMethod.GetILGenerator();
+                        ilGen.Emit(OpCodes.Ldarg_0);
+                        ilGen.Emit(OpCodes.Newobj, objtype.GetConstructor(new Type[] { typeof(int) }));
+                        ilGen.Emit(OpCodes.Ret);
+                        c = (CreateList)dynMethod.CreateDelegate(typeof(CreateList));
+                        _conlistcache.Add(objtype, c);
+                        return c(count);
+                    }
+                    else
+                    {
+                        _conlistcache.Add(objtype, null);// kludge : non capacity lists
+                        return FastCreateInstance(objtype);
+                    }
                 }
             }
             catch (Exception exc)
@@ -672,7 +721,7 @@ namespace fastJSON
             return (GenericGetter)getter.CreateDelegate(typeof(GenericGetter));
         }
 
-        internal Getters[] GetGetters(Type type, bool ShowReadOnlyProperties, List<Type> IgnoreAttributes)
+        public Getters[] GetGetters(Type type, /*bool ShowReadOnlyProperties,*/ List<Type> IgnoreAttributes)
         {
             Getters[] val = null;
             if (_getterscache.TryGetValue(type, out val))
@@ -685,12 +734,13 @@ namespace fastJSON
             List<Getters> getters = new List<Getters>();
             foreach (PropertyInfo p in props)
             {
+                bool read_only = false;
                 if (p.GetIndexParameters().Length > 0)
                 {// Property is an indexer
                     continue;
                 }
-                if (!p.CanWrite && (ShowReadOnlyProperties == false))//|| isAnonymous == false))
-                    continue;
+                if (!p.CanWrite)// && (ShowReadOnlyProperties == false))//|| isAnonymous == false))
+                    read_only = true; //continue;
                 if (IgnoreAttributes != null)
                 {
                     bool found = false;
@@ -722,12 +772,15 @@ namespace fastJSON
 #endif
                 GenericGetter g = CreateGetMethod(type, p);
                 if (g != null)
-                    getters.Add(new Getters { Getter = g, Name = p.Name, lcName = p.Name.ToLowerInvariant(), memberName = mName });
+                    getters.Add(new Getters { Getter = g, Name = p.Name, lcName = p.Name.ToLowerInvariant(), memberName = mName, ReadOnly = read_only });
             }
 
             FieldInfo[] fi = type.GetFields(bf);
             foreach (var f in fi)
             {
+                bool read_only = false;
+                if (f.IsInitOnly) // && (ShowReadOnlyProperties == false))//|| isAnonymous == false))
+                    read_only = true;//continue;
                 if (IgnoreAttributes != null)
                 {
                     bool found = false;
@@ -761,7 +814,7 @@ namespace fastJSON
                 {
                     GenericGetter g = CreateGetField(type, f);
                     if (g != null)
-                        getters.Add(new Getters { Getter = g, Name = f.Name, lcName = f.Name.ToLowerInvariant(), memberName = mName });
+                        getters.Add(new Getters { Getter = g, Name = f.Name, lcName = f.Name.ToLowerInvariant(), memberName = mName, ReadOnly = read_only });
                 }
             }
             val = getters.ToArray();

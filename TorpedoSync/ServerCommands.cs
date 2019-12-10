@@ -86,6 +86,7 @@ namespace TorpedoSync
             Directory.CreateDirectory(path);
 
             var z = RaptorDB.Common.ZipStorer.Create(path + fn, "");
+            z.EncodeUTF8 = true;
             foreach (var ff in files)
             {
                 SyncFile f = (SyncFile)ff;

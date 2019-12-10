@@ -269,18 +269,21 @@ namespace TorpedoSync
                             LongDirectory.Move(_conn.Path + x, archivefolder + x);
                         }
                         catch { }
-                        //try
-                        //{
-                        //    var f = LongDirectory.GetFiles(_conn.Path + x, "*.*", SearchOption.AllDirectories);
-                        //    if (f.Length == 0)
-                        //    {
-                        //        LongDirectory.Delete(_conn.Path + x, true);
-                        //    }
-                        //}
-                        //catch (Exception ex)
-                        //{
-                        //    _log.Error(ex);
-                        //}
+                        try
+                        {
+                            if (LongDirectory.Exists(_conn.Path + x))
+                            {
+                                var f = LongDirectory.GetFiles(_conn.Path + x, "*.*", SearchOption.AllDirectories);
+                                if (f.Length == 0)
+                                {
+                                    LongDirectory.Delete(_conn.Path + x, true);
+                                }
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            _log.Error(ex);
+                        }
                     }
                 });
                 d.FilesAdded.ForEach(x =>
@@ -442,6 +445,7 @@ namespace TorpedoSync
                                     zfn = zfn.Replace("\\", "/");
 
                                 var zf = ZipStorer.Open(zfn, FileAccess.Read);
+                                zf.EncodeUTF8 = true;
                                 foreach (var z in zf.ReadCentralDir())
                                 {
                                     if (TorpedoSync.Global.isWindows)

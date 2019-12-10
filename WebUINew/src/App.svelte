@@ -26,9 +26,6 @@
   let title = "";
   let modalyes = false;
   let server = "";
-  // let TABS;
-
-  // $: console.log(TABS);
 
   onMount(() => {
     addtab({
@@ -164,18 +161,18 @@
     will-change: overflow;
   }
 
-  /* .Left, */
-  .Middle
-  /* .Right  */ {
+  /* .Right,
+     .Left, */
+  .Middle {
     /* overflow: auto; */
     height: auto;
     -webkit-overflow-scrolling: touch;
     -ms-overflow-style: none;
   }
 
-  /* .Left::-webkit-scrollbar, */
-  .Middle::-webkit-scrollbar
-  /* .Right::-webkit-scrollbar  */ {
+  /* .Left::-webkit-scrollbar, 
+     .Right::-webkit-scrollbar  */
+  .Middle::-webkit-scrollbar {
     display: none;
   }
 
@@ -197,7 +194,7 @@
 
   <div class="Middle">
 
-    <Tabs {tabs} {activetabid} {mainid}/>
+    <Tabs {tabs} {activetabid} {mainid} showCloseAll={false} />
 
     <div id={mainid} />
 

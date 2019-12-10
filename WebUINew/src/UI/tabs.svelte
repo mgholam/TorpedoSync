@@ -5,6 +5,7 @@
   export let mainid;
   export let tabs;
   export let activetabid = "";
+  export let showCloseAll = false;
 
   $: changetab(activetabid);
 
@@ -110,7 +111,7 @@
     border: 1px;
     color: var(--theme-darker);
   }
-  /* .closeall {
+  .closeall {
     margin-left: -35px;
     color: white;
     padding: 8px;
@@ -123,13 +124,13 @@
     -webkit-border-radius: 15px;
     -moz-border-radius: 15px;
     border-radius: 15px;
-  } */
+  }
 </style>
 
-<svelte:options accessors={true} />
-
 <ul class="tab-links">
-  <!-- <span class="closeall" on:click={closeall} title="Close all tabs">X</span> -->
+  {#if showCloseAll}
+    <span class="closeall" on:click={closeall} title="Close all tabs">X</span>
+  {/if}
   {#each tabs as tab (tab.id)}
     <li
       id={tab.id}

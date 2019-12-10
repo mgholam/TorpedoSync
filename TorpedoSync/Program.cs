@@ -18,6 +18,7 @@ namespace TorpedoSync
         {
             LogManager.Configure("LOGS\\log.txt".Replace('\\', Path.DirectorySeparatorChar), 500, false);
             LogManager.SetLogLevel(2);
+
             if (args.Length == 1)
             {
                 DirectServiceInstaller srv = new DirectServiceInstaller();

@@ -35,25 +35,32 @@ namespace TorpedoSync
 
         public static void runConsole()
         {
-            LogManager.ConsoleMode();
-            _path = Path.GetDirectoryName(typeof(Service).Assembly.Location);
-            Directory.SetCurrentDirectory(_path);
-
-            if (_path.EndsWith("" + Path.DirectorySeparatorChar) == false) _path += Path.DirectorySeparatorChar;
-            AppDomain.CurrentDomain.AssemblyResolve += CurrentDomain_AssemblyResolve;
-    
-            _server = new TorpedoSyncServer();
-            Console.WriteLine("\r\n\r\nPress 'q' to exit...");
-            if (Global.isWindows && Global.StartWebUI)
-                Process.Start("http://localhost:" + Global.WebPort);
-            Console.CancelKeyPress += Console_CancelKeyPress;
-            while (true)
+            try
             {
-                var i = Console.ReadKey();
-                if (i.Key == ConsoleKey.Q)
-                    break;
+                LogManager.ConsoleMode();
+                _path = Path.GetDirectoryName(typeof(Service).Assembly.Location);
+                Directory.SetCurrentDirectory(_path);
+
+                if (_path.EndsWith("" + Path.DirectorySeparatorChar) == false) _path += Path.DirectorySeparatorChar;
+                AppDomain.CurrentDomain.AssemblyResolve += CurrentDomain_AssemblyResolve;
+
+                _server = new TorpedoSyncServer();
+                Console.WriteLine("\r\n\r\nPress 'q' to exit...");
+                if (Global.isWindows && Global.StartWebUI)
+                    Process.Start("http://localhost:" + Global.WebPort);
+                Console.CancelKeyPress += Console_CancelKeyPress;
+                while (true)
+                {
+                    var i = Console.ReadKey();
+                    if (i.Key == ConsoleKey.Q)
+                        break;
+                }
+                _server.Stop();
             }
-            _server.Stop();
+            catch(Exception ex)
+            {
+                _log.Error(ex);
+            }
         }
 
         private static void Console_CancelKeyPress(object sender, ConsoleCancelEventArgs e)

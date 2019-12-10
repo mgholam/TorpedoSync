@@ -1,6 +1,6 @@
 
-// build number = 634
-// build version = 1.6.0
+// build number = 661
+// build version = 1.7.0
 
-[assembly: System.Reflection.AssemblyFileVersion("1.6.0.634")]
-[assembly: System.Reflection.AssemblyVersion("1.4.0.0")] 
+[assembly: System.Reflection.AssemblyFileVersion("1.7.0.661")]
+[assembly: System.Reflection.AssemblyVersion("1.7.0.0")]
