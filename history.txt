@@ -1,3 +1,7 @@
+1.7.5
+- updated npm packages
+- added support for env path variables (%LocalAppData% etc.)
+
 1.7.0
 - WEBUI: refactored tabs out of app into own component
 - upgrade to fastJSON v2.3.1

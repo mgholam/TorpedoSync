@@ -39,7 +39,17 @@ namespace TorpedoSync
 
     public class Share
     {
-        public string Path;
+        private string _Path;
+        public string Path
+        {
+            get { return _Path; }
+            set
+            {
+                _Path = value;
+                if (_Path.IndexOf('%') > -1)
+                    _Path = Environment.ExpandEnvironmentVariables(_Path);
+            }
+        }
         public string Name;
         public string ReadOnlyToken = new Guid().ToString();
         public string ReadWriteToken = new Guid().ToString();
@@ -61,7 +71,17 @@ namespace TorpedoSync
         /// <summary>
         /// Path to share files on disk 
         /// </summary>
-        public string Path; // share path on disk
+        private string _Path;
+        public string Path
+        {
+            get { return _Path; }
+            set
+            {
+                _Path = value;
+                if (_Path.IndexOf('%') > -1)
+                    _Path = Environment.ExpandEnvironmentVariables(_Path);
+            }
+        }
         /// <summary>
         /// Machine name to connect to if a client
         /// </summary>
@@ -95,7 +115,7 @@ namespace TorpedoSync
         public bool Allowed(string filepath)
         {
             // check against ignore list
-            string fpl = filepath.ToLower().Replace("/","\\");
+            string fpl = filepath.ToLower().Replace("/", "\\");
             string[] ss = fpl.Split('\\');
             foreach (var i in ignorelist)
             {
