@@ -17,7 +17,7 @@
     <DebugType>full</DebugType>
     <Optimize>true</Optimize>
     <OutputPath>..\output\</OutputPath>
-    <DefineConstants>TRACE;DEBUG;minilzo; NOASYNC</DefineConstants>
+    <DefineConstants>TRACE;DEBUG;minilzo; NOASYNC; NET4</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
