@@ -2,7 +2,7 @@
   import { createEventDispatcher, onMount } from "svelte";
   import Modal from "../UI/Modal.svelte";
   import Button from "../UI/button.svelte";
-  import msgbox from "../UI/msgbox.js";
+  import u from "../utils.js";
 
   export let connection;
   export let show = true;
@@ -13,30 +13,23 @@
   });
 
   let info;
-  let timer = "";
+  let timer = null;
   let logtimerms = 1000;
 
   const dispatch = createEventDispatcher();
 
   function refresh() {
-    if (timer === "") {
+    if (timer == null) {
       timer = setInterval(refresh, logtimerms);
     }
 
-    window.GET(
-      "api/connection.getinfo?" +
-        connection.MachineName +
-        "&" +
-        connection.Name,
-      function(data) {
-        // console.log(data);
-        info = data;
-      }
-    );
+    u.GET(
+      "api/connection.getinfo?" + connection.MachineName + "&" + connection.Name
+    ).then(data => (info = data));
   }
 
   function close() {
-    if (timer !== "") clearTimeout(timer);
+    if (timer) clearTimeout(timer);
 
     show = false;
     setTimeout(() => {
@@ -53,8 +46,8 @@
 <svelte:options accessors={true} />
 
 <Modal title="Connection Information" minwidth="600" minheight="320" {show}>
-  <div slot="content">
-    {#if info !== undefined}
+  <div>
+    {#if info != null}
       <div>
         <p>Total file count : {info.TotalFileCount.toLocaleString()}</p>
         <p>Files in queue : {info.FilesInQue.toLocaleString()}</p>

@@ -4,6 +4,7 @@
   import Button from "../UI/button.svelte";
   import Fa from "svelte-fa";
   import icons from "../icons.js";
+  import u from "../utils.js";
 
   export let active = false;
 
@@ -16,7 +17,7 @@
   function changetheme(color) {
     // msgbox.setColor(color);
     //msgbox.Ok("Theme changed!", "");
-    if (color !== "#999") {
+    if (color != "#999") {
       // console.log(color);
       document.documentElement.style.setProperty(
         "--theme-darker",
@@ -134,7 +135,7 @@
       ok = false;
       msg += "New sync timer must be in range : 5-3600\r\n";
     }
-    if (ok === false) {
+    if (ok == false) {
       msgbox.Ok(msg);
       return;
     }
@@ -148,20 +149,14 @@
   }
 
   function pausets() {
-    window.GET("api/pausets?1", function() {
-      refresh();
-    });
+    u.GET("api/pausets?1").then(refresh);
   }
   function resumets() {
-    window.GET("api/pausets?0", function() {
-      refresh();
-    });
+    u.GET("api/pausets?0").then(refresh);
   }
 
   function refresh() {
-    window.GET("api/getconfigs", function(data) {
-      configs = data;
-    });
+    u.GET("api/getconfigs").then(data => (configs = data));
   }
 </script>
 
@@ -179,7 +174,7 @@
     <h3 style={configs.PauseAll ? 'color:red;' : 'color:green;'}>
       Status : {configs.PauseAll ? 'Paused' : 'Running'}
     </h3>
-    {#if configs.PauseAll === false}
+    {#if configs.PauseAll == false}
       <Button on:click={pausets}>
         <Fa icon={icons.faPause} />
         Pause Torpedo Sync
@@ -190,7 +185,7 @@
         Resume Torpedo Sync
       </Button>
     {/if}
-    {#if editmode === false}
+    {#if editmode == false}
       <Button on:click={edit}>
         <Fa icon={icons.faEdit} />
         Edit Values
@@ -209,7 +204,7 @@
     <label>Theme color :</label>
     <input type="color" name="favcolor" bind:value={themecolor} />
     <br /> -->
-    {#if configs !== undefined && configs.Globals !== undefined}
+    {#if configs && configs.Globals}
       <div class="header">
         <form>
           <table>

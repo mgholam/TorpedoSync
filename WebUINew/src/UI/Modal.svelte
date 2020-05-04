@@ -122,7 +122,7 @@
     /*** FIREFOX FIX ***/
     -moz-transform: scale(2);
   }
-  
+
   .modal-backdrop {
     position: fixed;
     top: 0;
@@ -189,9 +189,9 @@
     class="modal"
     on:mousedown={mdown}
     bind:this={modaldiv}>
-    <h1 on:mousedown={() => allowmmove = true}>{title}</h1>
+    <h1 on:mousedown={() => (allowmmove = true)}>{title}</h1>
     <div class="content">
-      <slot name="content" />
+      <slot />
     </div>
     <footer>
       <slot name="footer">

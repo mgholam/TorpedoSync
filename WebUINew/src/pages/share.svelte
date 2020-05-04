@@ -6,6 +6,7 @@
   import entity from "../entities.js";
   import Fa from "svelte-fa";
   import icons from "../icons.js";
+  import u from "../utils.js";
 
   export let active = false;
 
@@ -17,22 +18,22 @@
   let sharefilter;
   let draggable = false;
 
-  $: sharefilter = window.FILTER(shares, findshare, sortcol, sortAsc);
+  $: sharefilter = u.FILTER(shares, findshare, sortcol, sortAsc);
 
   onMount(() => {
     refresh();
   });
 
   function sorticon(name, sc, sa) {
-    if (sc === name) {
-      if (sa === true) return icons.faSortAlphaDown;
+    if (sc == name) {
+      if (sa == true) return icons.faSortAlphaDown;
       return icons.faSortAlphaDownAlt;
     }
     return "";
   }
 
   function refresh() {
-    window.GET("api/getshares", function(data) {
+    u.GET("api/getshares").then(data => {
       data.forEach((o, i) => (o.id = i));
       shares = data;
     });
@@ -45,33 +46,22 @@
   }
 
   function pause(share) {
-    window.GET("api/share.pauseresume?" + share.Name + "&true", function() {
-      refresh();
-    });
+    u.GET("api/share.pauseresume?" + share.Name + "&true").then(refresh);
   }
 
   function resume(share) {
-    window.GET("api/share.pauseresume?" + share.Name + "&false", function() {
-      refresh();
-    });
+    u.GET("api/share.pauseresume?" + share.Name + "&false").then(refresh);
   }
 
   function unshare(share, index) {
-    msgbox.OkCancel(
-      "Do you want to remove this share?",
-      "Remove?",
-      inputValue => {
-        if (inputValue !== "") {
-          window.GET("api/share.remove?" + share.Name, function() {
-            refresh();
-          });
-        }
-      }
-    );
+    msgbox.OkCancel("Do you want to remove this share?", "Remove?", () => {
+      console.log("here");
+      u.GET("api/share.remove?" + share.Name).then(refresh);
+    });
   }
 
   function sort(col) {
-    if (col !== sortcol) {
+    if (col != sortcol) {
       sortAsc = true;
       sortcol = col;
     } else sortAsc = !sortAsc;

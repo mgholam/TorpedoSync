@@ -45,16 +45,16 @@
   }
 
   function sortby(col) {
-    if (sortcol !== col) {
+    if (sortcol != col) {
       sortcol = col;
       sorttype = "ASC";
-    } else sorttype = sorttype === "ASC" ? "DESC" : "ASC";
+    } else sorttype = sorttype == "ASC" ? "DESC" : "ASC";
     refresh();
   }
 
   function sorticon(name, sc, sa) {
-    if (sc === name) {
-      if (sa === true) return icons.faSortAlphaDown;
+    if (sc == name) {
+      if (sa == true) return icons.faSortAlphaDown;
       return icons.faSortAlphaDownAlt;
     }
     return "";
@@ -67,27 +67,23 @@
 
   function isAction(col) {
     if (action.length > 0) {
-      return (
-        action.find(x => x.toLowerCase() === col.toLowerCase()) !== undefined
-      );
+      return action.find(x => x.toLowerCase() == col.toLowerCase()) != null;
     }
     return false;
   }
 
   function isHide(col) {
     if (hide.length > 0) {
-      return (
-        hide.find(x => x.toLowerCase() === col.toLowerCase()) === undefined
-      );
+      return hide.find(x => x.toLowerCase() == col.toLowerCase()) == null;
     }
     return true;
   }
 
   function mapName(col) {
     // TODO : do case insensitive
-    if (mapping === undefined) return col;
+    if (mapping == null) return col;
     var n = mapping[col];
-    if (n === undefined) return col;
+    if (n == null) return col;
     return n;
   }
 
@@ -163,7 +159,7 @@
   }
 </style>
 
-{#if rows !== null && rows.length > 0}
+{#if rows && rows.length > 0}
   <pre>Rows : {rows.length} of {totalrows.toLocaleString()}</pre>
   <div class="pager">
     <label class="link" on:click={prevpage}>&lt;prev</label>

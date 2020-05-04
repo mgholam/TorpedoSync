@@ -54,7 +54,7 @@
       // kludge to get the server
       server = window.ServerURL;
       // console.log("server : " + server);
-    }, 1000);
+    }, 0);
   });
 
   function createcomponent(tabname, id, args) {

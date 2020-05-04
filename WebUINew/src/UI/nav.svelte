@@ -23,7 +23,7 @@
   };
 
   function togglepanel(name) {
-    if (activepanel === name) activepanel = "";
+    if (activepanel == name) activepanel = "";
     else activepanel = name;
   }
 </script>
@@ -99,13 +99,13 @@
   {#each Object.keys(navdata) as name}
     <button
       class="accordion"
-      class:active={activepanel === name}
+      class:active={activepanel == name}
       on:click={() => togglepanel(name)}>
       {name}
     </button>
-    <div class="panel" class:show={activepanel === name}>
+    <div class="panel" class:show={activepanel == name}>
       {#each navdata[name] as panel}
-        <label 
+        <label
           id={panel.name}
           on:click={() => {
             dispatch('navclick', panel);

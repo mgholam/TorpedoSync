@@ -7,7 +7,7 @@
   export let show = false;
   // export let color = "#999";
 
-  // $: if (color !== "#999") {
+  // $: if (color != "#999") {
   //   // console.log(color);
   //   document.documentElement.style.setProperty(
   //     "--theme-darker",
@@ -119,7 +119,7 @@
   function okclick() {
     if (okf) {
       if (inputmode) {
-        if (inpval !== "") {
+        if (inpval) {
           okf(inpval);
           close();
           return;
@@ -400,7 +400,6 @@
     margin: auto;
     margin-top: 20px;
   }
-  
 
   @keyframes spin {
     0% {
@@ -422,7 +421,7 @@
     {style}
     on:mousedown={mdown}
     bind:this={modaldiv}>
-    <h1 on:mousedown={() => allowmmove = true}>{Title}</h1>
+    <h1 on:mousedown={() => (allowmmove = true)}>{Title}</h1>
     <div class="content">
       {#if inputmode}
         {#if multline}

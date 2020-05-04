@@ -1,7 +1,7 @@
 <script>
   import { onMount } from "svelte";
-  import msgbox from "../UI/msgbox.js";
   import Button from "../UI/button.svelte";
+  import u from "../utils.js";
 
   export let active = false;
   let LogItems = [];
@@ -15,10 +15,7 @@
   });
 
   function refresh(a) {
-    if (a || active)
-      window.GET("api/getlogs", function(d) {
-        LogItems = d;
-      });
+    if (a || active) u.GET("api/getlogs").then(d => (LogItems = d));
   }
 </script>
 

@@ -11,12 +11,12 @@
 
   function removetab(id) {
     // console.log(tabs);
-    var t = tabs.find(x => x.id === id);
-    if (t !== null && t.obj !== null) {
+    var t = tabs.find(x => x.id == id);
+    if (t && t.obj) {
       // remove svelte component
       t.obj.$destroy();
       // remove from list
-      tabs = tabs.filter(x => x.id !== id);
+      tabs = tabs.filter(x => x.id != id);
       // remove div from dom
       var e = document.querySelector("#" + mainid + " #" + id);
       e.remove();
@@ -40,7 +40,7 @@
   }
 
   function closetab(id) {
-    var i = tabs.findIndex(x => x.id === id);
+    var i = tabs.findIndex(x => x.id == id);
     i--;
     changetab(tabs[i].id);
     removetab(id);
@@ -50,7 +50,7 @@
     showmsg = false;
 
     tabs.forEach(x => {
-      if (x.title !== "Help") closetab(x.id);
+      if (x.title != "Help") closetab(x.id);
     });
   }
 
@@ -134,7 +134,7 @@
   {#each tabs as tab (tab.id)}
     <li
       id={tab.id}
-      class:active={tab.id === activetabid}
+      class:active={tab.id == activetabid}
       on:click={() => changetab(tab.id)}>
       <div>
         <label>

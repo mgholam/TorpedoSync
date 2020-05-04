@@ -6,7 +6,7 @@
   import ConnectInfo from "./connview.svelte";
   import Fa from "svelte-fa";
   import icons from "../icons.js";
-  //   import DataTable from "../UI/datatable.svelte";
+  import u from "../utils.js";
 
   export let active = false;
 
@@ -18,7 +18,7 @@
 
   let connfilter = [];
 
-  $: connfilter = window.FILTER(connections, findconn, sortcol, sortAsc);
+  $: connfilter = u.FILTER(connections, findconn, sortcol, sortAsc);
   $: if (active) refresh();
 
   onMount(() => {
@@ -26,25 +26,16 @@
   });
 
   function remove(conn) {
-    msgbox.OkCancel(
-      "Do you want to remove this connection?",
-      "Remove?",
-      inputValue => {
-        if (inputValue !== "") {
-          window.GET(
-            "api/connection.remove?" + conn.MachineName + "&" + conn.Name,
-            function() {
-              refresh();
-            }
-          );
-        }
-      }
-    );
+    msgbox.OkCancel("Do you want to remove this connection?", "Remove?", () => {
+      u.GET("api/connection.remove?" + conn.MachineName + "&" + conn.Name).then(
+        refresh
+      );
+    });
   }
 
   function sorticon(name, sc, sa) {
-    if (sc === name) {
-      if (sa === true) return icons.faSortAlphaDown;
+    if (sc == name) {
+      if (sa == true) return icons.faSortAlphaDown;
       return icons.faSortAlphaDownAlt;
     }
     return "";
@@ -52,30 +43,25 @@
 
   function pause(conn) {
     // console.log(conn);
-    window.GET(
+    u.GET(
       "api/connection.pauseresume?" +
         conn.MachineName +
         "&" +
         conn.Name +
-        "&true",
-      function() {
-        refresh();
-      }
-    );
+        "&true"
+    ).then(refresh);
   }
+
   function resume(conn) {
-    var that = this;
-    window.GET(
+    u.GET(
       "api/connection.pauseresume?" +
         conn.MachineName +
         "&" +
         conn.Name +
-        "&false",
-      function() {
-        refresh();
-      }
-    );
+        "&false"
+    ).then(refresh);
   }
+
   function view(conn, isnew) {
     var n = document.createElement("div");
     var e = document.body.appendChild(n);
@@ -91,33 +77,28 @@
     msgbox.OkCancel(
       "Do you want to confirm this connection",
       "Confirm?",
-      inputValue => {
-        if (inputValue !== "") {
-          //machinename & share & bool
-          window.GET(
-            "api/connection.confirm?" +
-              conn.MachineName +
-              "&" +
-              conn.Name +
-              "&true",
-            function() {
-              refresh();
-            }
-          );
-        }
+      () => {
+        //machinename & share & bool
+        u.GET(
+          "api/connection.confirm?" +
+            conn.MachineName +
+            "&" +
+            conn.Name +
+            "&true"
+        ).then(refresh);
       }
     );
   }
 
   function sort(col) {
-    if (col !== sortcol) {
+    if (col != sortcol) {
       sortAsc = true;
       sortcol = col;
     } else sortAsc = !sortAsc;
   }
 
   function refresh() {
-    window.GET("api/getconnections", function(data) {
+    u.GET("api/getconnections").then(data => {
       data.forEach((o, i) => (o.id = i));
       connections = data;
       // console.log( connections);
@@ -233,7 +214,7 @@
                 </label>
               </td>
               <td>
-                {#if s.isPaused === false}
+                {#if s.isPaused == false}
                   <label class="al" on:click={() => pause(s)}>
                     <Fa icon={icons.faPause} />
                     Pause
@@ -248,8 +229,8 @@
                   <Fa icon={icons.faTimes} />
                   Disconnect
                 </label>
-                {#if s.isConfirmed === false}
-                  {#if s.isClient === false}
+                {#if s.isConfirmed == false}
+                  {#if s.isClient == false}
                     <label class="al" on:click={() => confirm(s)}>
                       <span class="gi gi-ok" />
                       Confirm
@@ -264,13 +245,5 @@
         </table>
       </div>
     {/if}
-
-    <!-- <DataTable
-      rows={connfilter}
-      action={['name', 'token']}
-      mapping={{"Name":"Share", "Path": "Local Path", "MachineName": "Machine"}}
-      hide={['isConfirmed', 'ReadOnly', 'isPaused', 'isClient']}
-      on:action={ae}>
-    </DataTable> -->
   </div>
 {/if}

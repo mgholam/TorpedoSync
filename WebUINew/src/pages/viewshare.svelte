@@ -3,9 +3,9 @@
   import Modal from "../UI/Modal.svelte";
   import Button from "../UI/button.svelte";
   import msgbox from "../UI/msgbox.js";
-  
+  import u from "../utils.js";
 
-  export let share ;//= new Share();
+  export let share; //= new Share();
   export let isnew = true;
   export let show = true;
   export let node;
@@ -14,15 +14,15 @@
 
   function save() {
     var ok = true;
-    if (share.Name === "") ok = false;
-    if (share.Path === "") ok = false;
-    if (ok === false) {
+    share.Name = share.Name.trim();
+    share.Path = share.Path.trim();
+    if (share.Name == "") ok = false;
+    if (share.Path == "") ok = false;
+    if (ok == false) {
       msgbox.Ok("Please enter values", "Incomplete");
       return;
     }
-    window.POST("api/share.add", share, function(data) {
-      close();
-    });
+    u.POST("api/share.add", share).then(close);
   }
 
   function close() {
@@ -35,7 +35,7 @@
 
   // share() {
   //     this.isnew = true;
-  //     if (this.share.Name !== "")
+  //     if (this.share.Name != "")
   //         this.isnew = false;
   // }
 </script>
@@ -47,7 +47,7 @@
 <svelte:options accessors={true} />
 
 <Modal minwidth="600" minheight="300" title="Add a new Share" {show}>
-  <div slot="content">
+  <div>
     <div class="header">
       <form>
         <table>

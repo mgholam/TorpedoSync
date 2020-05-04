@@ -3,6 +3,7 @@
   import Modal from "../UI/Modal.svelte";
   import Button from "../UI/button.svelte";
   import msgbox from "../UI/msgbox.js";
+  import u from "../utils.js";
 
   export let id = "";
   export let isnew = true;
@@ -14,14 +15,16 @@
 
   function save() {
     var ok = true;
-    if (id === "") ok = false;
-    if (path === "") ok = false;
-    if (ok === false) {
+    id = id.trim();
+    path = path.trim();
+    if (id == "") ok = false;
+    if (path == "") ok = false;
+    if (ok == false) {
       msgbox.Ok("Please enter values", "Incomplete");
       return;
     }
-    window.GET("api/connect?" + id + "&" + path, function(ret) {
-      if (ret === false) {
+    u.GET("api/connect?" + id + "&" + path).then(ret => {
+      if (ret == false) {
         msgbox.Ok("Token not found on connected machines.", "Error");
         return;
       }
@@ -44,8 +47,8 @@
 
 <svelte:options accessors={true} />
 
-<Modal title="Connect To" minwidth="600" minheight="220" show={show}>
-  <div slot="content">
+<Modal title="Connect To" minwidth="600" minheight="220" {show}>
+  <div>
     <div class="header">
       <form>
         <table>
