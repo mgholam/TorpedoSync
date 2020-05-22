@@ -2,6 +2,7 @@
 - WEBUI using fetch()
 - js code cleanup
 - modal form default slot error 
+- network retry logic
 
 1.7.5
 - updated npm packages

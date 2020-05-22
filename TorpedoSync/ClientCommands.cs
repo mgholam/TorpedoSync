@@ -112,7 +112,7 @@ namespace TorpedoSync
                     return null;
                 }
             }
-            catch { }
+            catch (Exception ex) { _log.Error(ex); }
             return null;
         }
 
@@ -244,7 +244,7 @@ namespace TorpedoSync
                     return d;
                 }
             }
-            catch (Exception ex){ _log.Error(ex); }
+            catch (Exception ex) { _log.Error(ex); }
             //Console.Write
             _log.Info("syncread null");
             return null;
@@ -277,7 +277,7 @@ namespace TorpedoSync
                     return d;
                 }
             }
-            catch (Exception ex){ _log.Error(ex); }
+            catch (Exception ex) { _log.Error(ex); }
             _log.Info("syncrw null");
 
             return null;
@@ -320,10 +320,11 @@ namespace TorpedoSync
             ServerAddress i = null;
             while (i == null && retry < 5)
             {
-                i = ServerList.Find(x => x.Name == name);
+                lock (_lock)
+                    i = ServerList.Find(x => x.Name == name);
                 if (i == null)
                 {
-                    System.Threading.Thread.Sleep(100);
+                    System.Threading.Thread.Sleep(1000);
                     retry++;
                 }
             }

@@ -8,7 +8,6 @@ using System.Runtime.Serialization;
 using RaptorDB.Common;
 #if NET4
 using System.Linq;
-using RaptorDB.Common;
 #endif
 #if !SILVERLIGHT
 using System.Data;

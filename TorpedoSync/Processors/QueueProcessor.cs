@@ -552,32 +552,37 @@ namespace TorpedoSync
         private bool downloadfile(SyncFile file, string saveto, Func<Connection, SyncFile, long, int, DFile> func)
         {
             long left = file.S;
-            //int retry = 0;
             int mb = Global.DownloadBlockSizeMB * Global.MB;
+
 
             //Stopwatch sw = new Stopwatch();
             //sw.Start();
             while (left > 0)
             {
+                int retry = 0;
                 long len = left;
                 long start = file.S - left;
                 if (len > mb)
                     len = mb;
                 //sw.Reset();
-                DFile df = func(_conn, file, start, (int)len);
+                DFile df = null;
+                while (df == null && retry < 20)
+                {
+                    df = func(_conn, file, start, (int)len);
+                    if (df == null)
+                    {
+                        retry++;
+                        Thread.Sleep(300);
+                    }
+                }
                 //_connInfo.Mbs = (len / sw.ElapsedTicks) / (1000*TimeSpan.TicksPerSecond) ;
                 if (df == null)
                 {
-                    //retry++;
-                    //Thread.Sleep(new Random((int)FastDateTime.Now.Ticks).Next(2000) + 500);
-                    //if (retry > 10)
-                    {
-                        _log.Info("null data : " + saveto);
-                        //_que.Enqueue(file);
-                        //if (LongFile.Exists(saveto))
-                        LongFile.Delete(saveto);
-                        return false;
-                    }
+                    _log.Info("null data : " + saveto);
+                    //_que.Enqueue(file);
+                    //if (LongFile.Exists(saveto))
+                    LongFile.Delete(saveto);
+                    return false;
                 }
                 else if (df.err == DownloadError.OK)
                 {
