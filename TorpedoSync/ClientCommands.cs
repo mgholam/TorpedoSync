@@ -112,7 +112,7 @@ namespace TorpedoSync
                     return null;
                 }
             }
-            catch (Exception ex) { _log.Error(ex); }
+            catch { }// (Exception ex) { _log.Error(ex); }
             return null;
         }
 
