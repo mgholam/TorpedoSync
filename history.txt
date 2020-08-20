@@ -1,3 +1,6 @@
+1.7.7
+- npm audit fix
+
 1.7.6
 - WEBUI using fetch()
 - js code cleanup
