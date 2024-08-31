@@ -1,7 +1,7 @@
 <script>
   import { createEventDispatcher, onMount } from "svelte";
   import Modal from "../UI/Modal.svelte";
-  import Button from "../UI/button.svelte";
+  import Button from "../UI/Button.svelte";
   import u from "../utils.js";
 
   export let connection;

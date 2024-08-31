@@ -1,6 +1,6 @@
 <script>
   import { onMount } from "svelte";
-  import Button from "../UI/button.svelte";
+  import Button from "../UI/Button.svelte";
   import u from "../utils.js";
 
   export let active = false;

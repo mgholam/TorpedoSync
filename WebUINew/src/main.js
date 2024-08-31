@@ -4,6 +4,6 @@ const app = new App({
   target: document.body,
 });
 
-window.ServerURL = "";
+// window.ServerURL = "";
 
 export default app;

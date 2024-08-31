@@ -1,7 +1,7 @@
 <script>
   import { onMount } from "svelte";
   import msgbox from "../UI/msgbox.js";
-  import Button from "../UI/button.svelte";
+  import Button from "../UI/Button.svelte";
   import ConnectTo from "./connectto.svelte";
   import ConnectInfo from "./connview.svelte";
   import Fa from "svelte-fa";

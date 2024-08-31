@@ -1,7 +1,7 @@
 <script>
   import { createEventDispatcher } from "svelte";
   import Modal from "../UI/Modal.svelte";
-  import Button from "../UI/button.svelte";
+  import Button from "../UI/Button.svelte";
   import msgbox from "../UI/msgbox.js";
   import u from "../utils.js";
 
