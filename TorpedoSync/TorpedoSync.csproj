@@ -90,10 +90,11 @@
     <Compile Include="TorpedoWeb.cs" />
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="WEB\bundle.css" />
-    <EmbeddedResource Include="WEB\bundle.js" />
-    <EmbeddedResource Include="WEB\global.css" />
     <EmbeddedResource Include="WEB\index.html" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="WEB\index.css" />
+    <EmbeddedResource Include="WEB\index.js" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
